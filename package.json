@@ -1,0 +1,33 @@
+{
+  "name": "resolute-saga",
+  "version": "0.1.1",
+  "description": "Saga pattern for resolute",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test/*.js --reporter spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metocean/resolute-saga.git"
+  },
+  "keywords": [
+    "saga",
+    "messaging"
+  ],
+  "author": "Thomas Coats",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/metocean/resolute-saga/issues"
+  },
+  "homepage": "https://github.com/metocean/resolute-saga#readme",
+  "dependencies": {
+    "chronological": "1.2.1",
+    "consul-utils": "1.4.0",
+    "moment-timezone": "0.4.0",
+    "ndjson": "1.4.2",
+    "odo-async": "1.0.1",
+    "odo-hub": "2.0.0",
+    "resolute": "0.1.1",
+    "timespanner": "3.0.0"
+  }
+}
