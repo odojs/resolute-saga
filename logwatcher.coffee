@@ -4,6 +4,8 @@ loghelper = require './loghelper'
 module.exports = (httpAddr) ->
   sagas = {}
 
+  _listeners = []
+
   makewatch = (url) ->
     new consul.KV httpAddr, url, { recurse: yes }, (keys) ->
       keys = keys
@@ -17,25 +19,21 @@ module.exports = (httpAddr) ->
         instance =
           key: key.Key
           log: log
+          interpreted: loghelper.interpret log
           isavailable: !key.Session?
         sagas[url].log[key.Key] = instance
-        sagas[url].onlog instance
+        listener url, instance for listener in _listeners
 
   res =
-    watch: (url, options) ->
+    watch: (url) ->
       return if sagas[url]?
-
-      options ?= {}
-      onlog = options.onlog
-      onlog ?= ->
 
       sagas[url] =
         url: url
-        onlog: onlog
         log: {}
         available: []
 
-      sagas[url].watch = makewatch url, options
+      sagas[url].watch = makewatch url
 
     unwatch: (url) ->
       return if !sagas[url]?
@@ -45,6 +43,13 @@ module.exports = (httpAddr) ->
     getinstance: (url, key) ->
       return null if !sagas[url]?
       sagas[url].log[key]
+
+    onlog: (cb) ->
+      _listeners.push cb
+      off: ->
+        index = _listeners.indexOf cb
+        if index isnt -1
+          _listeners.splice index, 1
 
     destroy: (cb) ->
       res.unwatch url for url, _ of sagas

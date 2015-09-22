@@ -6,13 +6,14 @@ consul = require('consul-utils');
 loghelper = require('./loghelper');
 
 module.exports = function(httpAddr) {
-  var makewatch, res, sagas;
+  var _listeners, makewatch, res, sagas;
   sagas = {};
+  _listeners = [];
   makewatch = function(url) {
     return new consul.KV(httpAddr, url, {
       recurse: true
     }, function(keys) {
-      var i, instance, key, len, log, results;
+      var i, instance, key, len, listener, log, results;
       keys = keys.filter(function(k) {
         return k.Key !== url;
       }).map(function(d) {
@@ -29,34 +30,34 @@ module.exports = function(httpAddr) {
         instance = {
           key: key.Key,
           log: log,
+          interpreted: loghelper.interpret(log),
           isavailable: key.Session == null
         };
         sagas[url].log[key.Key] = instance;
-        results.push(sagas[url].onlog(instance));
+        results.push((function() {
+          var j, len1, results1;
+          results1 = [];
+          for (j = 0, len1 = _listeners.length; j < len1; j++) {
+            listener = _listeners[j];
+            results1.push(listener(url, instance));
+          }
+          return results1;
+        })());
       }
       return results;
     });
   };
   return res = {
-    watch: function(url, options) {
-      var onlog;
+    watch: function(url) {
       if (sagas[url] != null) {
         return;
       }
-      if (options == null) {
-        options = {};
-      }
-      onlog = options.onlog;
-      if (onlog == null) {
-        onlog = function() {};
-      }
       sagas[url] = {
         url: url,
-        onlog: onlog,
         log: {},
         available: []
       };
-      return sagas[url].watch = makewatch(url, options);
+      return sagas[url].watch = makewatch(url);
     },
     unwatch: function(url) {
       if (sagas[url] == null) {
@@ -70,6 +71,18 @@ module.exports = function(httpAddr) {
         return null;
       }
       return sagas[url].log[key];
+    },
+    onlog: function(cb) {
+      _listeners.push(cb);
+      return {
+        off: function() {
+          var index;
+          index = _listeners.indexOf(cb);
+          if (index !== -1) {
+            return _listeners.splice(index, 1);
+          }
+        }
+      };
     },
     destroy: function(cb) {
       var _, url;
