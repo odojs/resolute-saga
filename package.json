@@ -28,6 +28,7 @@
     "odo-async": "1.0.1",
     "odo-hub": "2.0.0",
     "resolute": "0.1.1",
+    "seuss-backoff": "0.3.0",
     "timespanner": "3.0.0"
   }
 }

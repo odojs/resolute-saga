@@ -6,7 +6,8 @@ consul = require('consul-utils');
 loghelper = require('./loghelper');
 
 module.exports = function(httpAddr) {
-  var _listeners, makewatch, res, sagas;
+  var _fin, _listeners, makewatch, res, sagas;
+  _fin = false;
   sagas = {};
   _listeners = [];
   makewatch = function(url) {
@@ -86,6 +87,10 @@ module.exports = function(httpAddr) {
     },
     destroy: function(cb) {
       var _, url;
+      if (_fin) {
+        return;
+      }
+      _fin = true;
       for (url in sagas) {
         _ = sagas[url];
         res.unwatch(url);

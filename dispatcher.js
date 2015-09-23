@@ -4,7 +4,8 @@ var async;
 async = require('odo-async');
 
 module.exports = function(subscriptions, hub) {
-  var loadsaga, res, sagas;
+  var _fin, loadsaga, res, sagas;
+  _fin = false;
   sagas = {};
   loadsaga = function(saga) {
     var instancecontext;
@@ -49,12 +50,14 @@ module.exports = function(subscriptions, hub) {
     deregister: function(url, cb) {
       var _, messagekey, ref;
       console.log("removing " + url);
-      ref = sagas[url].subscriptions;
-      for (messagekey in ref) {
-        _ = ref[messagekey];
-        subscriptions.unsubscribe(messagekey);
+      if (sagas[url] != null) {
+        ref = sagas[url].subscriptions;
+        for (messagekey in ref) {
+          _ = ref[messagekey];
+          subscriptions.unsubscribe(messagekey);
+        }
+        delete sagas[url];
       }
-      delete sagas[url];
       if (cb != null) {
         return cb();
       }
@@ -104,6 +107,12 @@ module.exports = function(subscriptions, hub) {
     },
     end: function(cb) {
       var _, fn1, tasks, url;
+      if (_fin) {
+        if (cb != null) {
+          cb();
+        }
+        return;
+      }
       tasks = [];
       fn1 = function(url) {
         return tasks.push(function(cb) {
@@ -115,6 +124,7 @@ module.exports = function(subscriptions, hub) {
         fn1(url);
       }
       return async.series(tasks, function() {
+        _fin = true;
         if (cb != null) {
           return cb();
         }

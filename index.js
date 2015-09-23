@@ -75,12 +75,10 @@ process.on('SIGINT', function() {
   var close, exit;
   close = function() {
     clearTimeout(exittimeout);
-    unifier.destroy();
     bus.close();
+    unifier.destroy();
     logwatcher.destroy();
-    loglocker.destroy();
-    sagatimeout.destroy();
-    return sagainterval.destroy();
+    return loglocker.destroy();
   };
   exit = function() {
     close();
@@ -92,7 +90,13 @@ process.on('SIGINT', function() {
   exittimeout = setTimeout(exit, 10000);
   console.log('Waiting for queues to empty.');
   console.log('(^C again to quit)');
+  sagatimeout.destroy();
+  sagainterval.destroy();
   return dispatcher.end(function() {
-    return bus.drain(close);
+    return bus.drain(function() {
+      return unifier.drain(function() {
+        return close();
+      });
+    });
   });
 });

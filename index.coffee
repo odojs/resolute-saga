@@ -40,12 +40,10 @@ exittimeout = null
 process.on 'SIGINT', ->
   close = ->
     clearTimeout exittimeout
-    unifier.destroy()
     bus.close()
+    unifier.destroy()
     logwatcher.destroy()
     loglocker.destroy()
-    sagatimeout.destroy()
-    sagainterval.destroy()
   exit = ->
     close()
     process.exit 0
@@ -53,5 +51,9 @@ process.on 'SIGINT', ->
   exittimeout = setTimeout exit, 10000
   console.log 'Waiting for queues to empty.'
   console.log '(^C again to quit)'
+  sagatimeout.destroy()
+  sagainterval.destroy()
   dispatcher.end ->
-    bus.drain close
+    bus.drain ->
+      unifier.drain ->
+        close()

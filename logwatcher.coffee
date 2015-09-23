@@ -2,6 +2,8 @@ consul = require 'consul-utils'
 loghelper = require './loghelper'
 
 module.exports = (httpAddr) ->
+  _fin = no
+
   sagas = {}
 
   _listeners = []
@@ -52,5 +54,7 @@ module.exports = (httpAddr) ->
           _listeners.splice index, 1
 
     destroy: (cb) ->
+      return if _fin
+      _fin = yes
       res.unwatch url for url, _ of sagas
       cb() if cb?

@@ -4,7 +4,8 @@ var consul;
 consul = require('consul-utils');
 
 module.exports = function(httpAddr) {
-  var locks, session;
+  var _fin, locks, session;
+  _fin = false;
   locks = {};
   session = consul.TTLSession(httpAddr);
   session.run({
@@ -56,6 +57,10 @@ module.exports = function(httpAddr) {
       });
     },
     destroy: function(cb) {
+      if (_fin) {
+        return;
+      }
+      _fin = true;
       return session.destroy(cb);
     }
   };

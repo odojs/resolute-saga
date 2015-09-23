@@ -1,6 +1,8 @@
 consul = require 'consul-utils'
 
 module.exports = (httpAddr) ->
+  _fin = no
+
   locks = {}
 
   session = consul.TTLSession httpAddr
@@ -33,4 +35,6 @@ module.exports = (httpAddr) ->
       cb success if cb?
 
   destroy: (cb) ->
+    return if _fin
+    _fin = yes
     session.destroy cb

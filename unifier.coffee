@@ -1,19 +1,15 @@
 loghelper = require './loghelper'
+Queue = require 'seuss-backoff'
 
+# TODO: optimisation to collect all saga and instance messages together?
 module.exports = (logwatcher, loglocker, options) ->
   ontask = options.ontask
 
-  queued = {}
+  queue = Queue onitem: (item, cb) ->
+    cb yes
 
   handle = logwatcher.onlog (url, instance) ->
-    # purge items
-    return if !queued[url]?
-    return if !queued[url][instance.key]?
-
-    # queued[url] = {} if !queued[url]?
-    # queued[url][sagakey] = [] if !queued[url][sagakey]?
-    # queued[url][sagakey].push ->
-    #   trymessage e, cb
+    # purge items in queue if found in log
 
   onmessage: (url, sagakey, messagekey, e, cb) ->
     console.log "MESSAGE #{url}#{sagakey}.#{messagekey} #{e.msgid}"
@@ -52,5 +48,8 @@ module.exports = (logwatcher, loglocker, options) ->
     console.log "TIMEOUT #{url}#{sagakey}.#{timeoutkey}"
   oninterval: (url, sagakey, intervalkey, count, value) ->
     console.log "INTERVAL #{url}#{sagakey}.#{intervalkey}"
+  drain: (cb) ->
+    queue.drain cb
   destroy: ->
+    queue.destroy()
     handle.off()

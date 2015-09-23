@@ -27,4 +27,6 @@ Saga pattern for resolute
 5. Unlock saga
 
 # Unable to get lock
-1. Queue 
+1. Queue message
+2. Retry later
+

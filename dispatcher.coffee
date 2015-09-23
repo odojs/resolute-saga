@@ -1,6 +1,7 @@
 async = require 'odo-async'
 
 module.exports = (subscriptions, hub) ->
+  _fin = no
   sagas = {}
 
   loadsaga = (saga) ->
@@ -35,9 +36,10 @@ module.exports = (subscriptions, hub) ->
       # unregister from events
       # close all locks
       # do more stuff
-      for messagekey, _ of sagas[url].subscriptions
-        subscriptions.unsubscribe messagekey
-      delete sagas[url]
+      if sagas[url]?
+        for messagekey, _ of sagas[url].subscriptions
+          subscriptions.unsubscribe messagekey
+        delete sagas[url]
       cb() if cb?
 
     ontask: (context, messagekey, e, cb) ->
@@ -71,10 +73,14 @@ module.exports = (subscriptions, hub) ->
         context.result result
 
     end: (cb) ->
+      if _fin
+        cb() if cb?
+        return
       tasks = []
       for url, _ of sagas
         do (url) ->
           tasks.push (cb) -> res.deregister url, cb
       async.series tasks, ->
+        _fin = yes
         cb() if cb?
   res
