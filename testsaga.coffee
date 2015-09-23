@@ -7,22 +7,22 @@ moment = chrono spanner moment
 
 
 module.exports =
-  configuresaga: (context) ->
-    context.map 'weather update', (e) -> 'daemon'
+  saga: (context) ->
+    #context.map 'weather update', (e) -> 'daemon'
 
     context.ready()
 
-  oninstanceloaded: (context) ->
-    context.every 'weather update', (e, cb) ->
-      context.settimeout 'too long between updates', moment().add 5, 'seconds'
-      console.log e
-      cb()
+  instance: (context) ->
+    'weather update': (e, cb) ->
+      cb 'Not implemented'
+      # context.settimeout 'too long between updates', moment().add 5, 'seconds'
+      # console.log e
+      # cb()
 
-    context.every 'too long between updates', (e, cb) ->
-      console.log 'It has been too long between updates, haha'
-      cb()
-
-    context.ready()
+    'too long between updates': (e, cb) ->
+      cb 'Not implemented'
+      # console.log 'It has been too long between updates, haha'
+      # cb()
 
 
 

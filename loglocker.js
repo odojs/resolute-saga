@@ -15,16 +15,10 @@ module.exports = function(httpAddr) {
   return {
     acquire: function(url, key, contents, cb) {
       var lock, prefix;
-      if (!session.isvalid()) {
+      prefix = "" + url + key;
+      if (!session.isvalid() || (locks[prefix] != null)) {
         if (cb != null) {
           cb(false);
-        }
-        return;
-      }
-      prefix = "" + url + key;
-      if (locks[prefix] != null) {
-        if (cb != null) {
-          cb(true);
         }
         return;
       }
@@ -34,7 +28,15 @@ module.exports = function(httpAddr) {
         key: key,
         lock: lock
       };
-      return lock.acquire(session.id(), contents, cb);
+      console.log("Locking " + prefix);
+      return lock.acquire(session.id(), contents, function(success) {
+        if (!success) {
+          delete locks[prefix];
+        }
+        if (cb != null) {
+          return cb(success);
+        }
+      });
     },
     release: function(url, key, contents, cb) {
       var prefix;
@@ -45,6 +47,7 @@ module.exports = function(httpAddr) {
         }
         return;
       }
+      console.log("Releasing " + prefix);
       return locks[prefix].lock.release(session.id(), contents, function(success) {
         delete locks[prefix];
         if (cb != null) {

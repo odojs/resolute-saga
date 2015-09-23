@@ -31,18 +31,20 @@ module.exports = function(logwatcher, options) {
     ref = instance.interpreted.clearedtimeouts;
     for (key in ref) {
       _ = ref[key];
-      if (timeouts[key] != null) {
-        timeouts[key].cancel();
-        delete timeouts[key];
+      if (timeouts[key] == null) {
+        continue;
       }
+      timeouts[key].cancel();
+      delete timeouts[key];
     }
     ref1 = instance.interpreted.handledtimeouts;
     for (key in ref1) {
       _ = ref1[key];
-      if (timeouts[key] != null) {
-        timeouts[key].cancel();
-        delete timeouts[key];
+      if (timeouts[key] == null) {
+        continue;
       }
+      timeouts[key].cancel();
+      delete timeouts[key];
     }
     ref2 = instance.interpreted.timeouts;
     results = [];
@@ -63,30 +65,19 @@ module.exports = function(logwatcher, options) {
   });
   return {
     destroy: function() {
-      var _, results, timeout, timeouts, timeoutsforsaga;
+      var _, timeout, timeouts, timeoutsforsaga;
       handle.off();
-      results = [];
       for (_ in timeoutsforsagas) {
         timeoutsforsaga = timeoutsforsagas[_];
-        results.push((function() {
-          var results1;
-          results1 = [];
-          for (_ in timeoutsforsaga) {
-            timeouts = timeoutsforsaga[_];
-            results1.push((function() {
-              var results2;
-              results2 = [];
-              for (_ in timeouts) {
-                timeout = timeouts[_];
-                results2.push(timeout.cancel());
-              }
-              return results2;
-            })());
+        for (_ in timeoutsforsaga) {
+          timeouts = timeoutsforsaga[_];
+          for (_ in timeouts) {
+            timeout = timeouts[_];
+            timeout.cancel();
           }
-          return results1;
-        })());
+        }
       }
-      return results;
+      return timeoutsforsagas = {};
     }
   };
 };

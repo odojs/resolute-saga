@@ -10,22 +10,17 @@ chrono = require('chronological');
 moment = chrono(spanner(moment));
 
 module.exports = {
-  configuresaga: function(context) {
-    context.map('weather update', function(e) {
-      return 'daemon';
-    });
+  saga: function(context) {
     return context.ready();
   },
-  oninstanceloaded: function(context) {
-    context.every('weather update', function(e, cb) {
-      context.settimeout('too long between updates', moment().add(5, 'seconds'));
-      console.log(e);
-      return cb();
-    });
-    context.every('too long between updates', function(e, cb) {
-      console.log('It has been too long between updates, haha');
-      return cb();
-    });
-    return context.ready();
+  instance: function(context) {
+    return {
+      'weather update': function(e, cb) {
+        return cb('Not implemented');
+      },
+      'too long between updates': function(e, cb) {
+        return cb('Not implemented');
+      }
+    };
   }
 };

@@ -14,6 +14,7 @@ module.exports = result = {
       intervals: {},
       handledintervals: {},
       clearedintervals: {},
+      data: {},
       other: []
     };
   },
@@ -50,19 +51,23 @@ module.exports = result = {
           res.clearedtimeouts[item.id] = true;
           break;
         case 'setinterval':
-          res.timeouts[item.id] = {
+          res.intervals[item.id] = {
             anchor: item.anchor,
             count: item.count,
-            unit: item.unit
+            unit: item.unit,
+            start: item.start
           };
           break;
         case 'handledinterval':
-          delete res.intervals[item.id];
+          res.intervals[item.id].start = item.interval;
           res.handledintervals[item.id] = item.interval;
           break;
         case 'clearinterval':
           delete res.intervals[item.id];
           res.clearedintervals[item.id] = true;
+          break;
+        case 'setdata':
+          res.data[item.id] = item.data;
           break;
         default:
           res.other.push(item);

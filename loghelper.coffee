@@ -14,6 +14,8 @@ module.exports =
       handledintervals: {}
       clearedintervals: {}
 
+      data: {}
+
       other: []
 
     parse: (value) ->
@@ -43,16 +45,19 @@ module.exports =
             delete res.timeouts[item.id]
             res.clearedtimeouts[item.id] = yes
           when 'setinterval'
-            res.timeouts[item.id] =
+            res.intervals[item.id] =
               anchor: item.anchor
               count: item.count
               unit: item.unit
+              start: item.start
           when 'handledinterval'
-            delete res.intervals[item.id]
+            res.intervals[item.id].start = item.interval
             res.handledintervals[item.id] = item.interval
           when 'clearinterval'
             delete res.intervals[item.id]
             res.clearedintervals[item.id] = yes
+          when 'setdata'
+            res.data[item.id] = item.data
           else
             res.other.push item
 

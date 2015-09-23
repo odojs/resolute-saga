@@ -1,68 +1,57 @@
-moment = require 'moment-timezone'
-spanner = require 'timespanner'
-chrono = require 'chronological'
-moment = chrono spanner moment
-
 logwatcher = require './logwatcher'
-logwatcher = logwatcher 'docker:8500'
-
 loglocker = require './loglocker'
-loglocker = loglocker 'docker:8500'
-
-sagatimeout = require './sagatimeout'
-sagatimeout = sagatimeout logwatcher,
-  ontimeout: (url, sagakey, timeoutkey) ->
-    console.log "TIMEOUT #{url}#{sagakey}.#{timeoutkey}"
-
 loghelper = require './loghelper'
+resolute = require 'resolute'
+subscriptions = require 'resolute/subscriptions'
+dispatcher = require './dispatcher'
+unifier = require './unifier'
+sagatimeout = require './sagatimeout'
+sagainterval = require './sagainterval'
 
-hub = require 'odo-hub/parallel'
-async = require 'odo-async'
+hub = require('odo-hub/hub') require('odo-hub/dispatch_parallel')()
 
+# Connect components together to make a monster
+logwatcher = logwatcher 'docker:8500'
+loglocker = loglocker 'docker:8500'
+sagatimeout = sagatimeout logwatcher, ontimeout: unifier.ontimeout
+sagainterval = sagainterval logwatcher, oninterval: unifier.oninterval
+bus = resolute bind: 'tcp://127.0.0.1:12345', datadir: './12345'
+subscriptions = subscriptions bus
+dispatcher = dispatcher subscriptions, hub
+unifier = unifier logwatcher, loglocker, ontask: dispatcher.ontask
+
+# Would get these from configuration somewhere
+subscriptions.bind 'weather update', 'tcp://127.0.0.1:12346'
+dispatcher.register 'sagas/saga1/', require './testsaga'
 logwatcher.watch 'sagas/saga1/'
 
-# { "type": "handledmessage", "id": 1 }
-# { "type": "handledmessage", "id": 2 }
-# { "type": "handledmessage", "id": 3 }
+# This would be something the dispatcher sets up
+hub.every 'message', (e, cb) ->
+  unifier.onmessage 'sagas/saga1/', 'exe1', 'message', e, cb
 
-id = 1
-interval = setInterval ->
-  hub.emit 'message', { msgid: id, value: 'awesome' }
-  id++
-, 1000
+# These messages would normally come from an external location
+async = require 'odo-async'
+async.delay ->
+  hub.emit 'message', { msgid: 1, value: 'awesome' }
+  hub.emit 'message', { msgid: 2, value: 'awesome' }
 
-retrymessage = (e, cb) ->
-  console.log "Trying #{e.msgid} again in 10 seconds"
-  setTimeout ->
-    trymessage e, cb
-  , 10000
-
-trymessage = (e, cb) ->
-  instance = logwatcher.getinstance 'sagas/saga1/', 'exe1'
-  log = instance?.log
-  log ?= []
-
-  # if the message has already been seen then all good
-  interpreted = instance?.interpreted
-  interpreted ?= loghelper.blankinterpretedlog()
-  if interpreted.handledmessages[e.msgid]?
-    console.log "Message #{e.msgid} already seen"
-    return cb()
-
-  loglocker.acquire 'sagas/saga1/', 'exe1', loghelper.stringify(log), (success) ->
-    return retrymessage e, cb if !success
-    log.push
-      type: 'handledmessage'
-      id: e.msgid
-    loglocker.release 'sagas/saga1/', 'exe1', loghelper.stringify(log), (success) ->
-      return retrymessage e, cb if !success
-      console.log "#{e.msgid} written to log"
-      cb()
-
-hub.every 'message', trymessage
-
+# Exit in weird and wonderful ways
+exittimeout = null
 process.on 'SIGINT', ->
-  clearInterval interval
-  logwatcher.destroy()
-  loglocker.destroy()
-  sagatimeout.destroy()
+  close = ->
+    clearTimeout exittimeout
+    unifier.destroy()
+    bus.close()
+    logwatcher.destroy()
+    loglocker.destroy()
+    sagatimeout.destroy()
+    sagainterval.destroy()
+  exit = ->
+    close()
+    process.exit 0
+  exit() if exittimeout?
+  exittimeout = setTimeout exit, 10000
+  console.log 'Waiting for queues to empty.'
+  console.log '(^C again to quit)'
+  dispatcher.end ->
+    bus.drain close

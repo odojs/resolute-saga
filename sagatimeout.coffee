@@ -18,13 +18,13 @@ module.exports = (logwatcher, options) ->
       timeoutsforsaga[instance.key] = {}
     timeouts = timeoutsforsaga[instance.key]
     for key, _ of instance.interpreted.clearedtimeouts
-      if timeouts[key]?
-        timeouts[key].cancel()
-        delete timeouts[key]
+      continue if !timeouts[key]?
+      timeouts[key].cancel()
+      delete timeouts[key]
     for key, _ of instance.interpreted.handledtimeouts
-      if timeouts[key]?
-        timeouts[key].cancel()
-        delete timeouts[key]
+      continue if !timeouts[key]?
+      timeouts[key].cancel()
+      delete timeouts[key]
     for key, timeout of instance.interpreted.timeouts
       continue if timeouts[key]?
       do (key, timeout) ->
@@ -39,3 +39,4 @@ module.exports = (logwatcher, options) ->
       for _, timeouts of timeoutsforsaga
         for _, timeout of timeouts
           timeout.cancel()
+    timeoutsforsagas = {}

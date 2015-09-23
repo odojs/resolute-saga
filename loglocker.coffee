@@ -8,25 +8,26 @@ module.exports = (httpAddr) ->
     ondown: -> locks = {}
 
   acquire: (url, key, contents, cb) ->
-    if !session.isvalid()
-      cb no if cb?
-      return
     prefix = "#{url}#{key}"
-    if locks[prefix]?
-      cb yes if cb?
+    if !session.isvalid() or locks[prefix]?
+      cb no if cb?
       return
     lock = consul.Lock httpAddr, prefix
     locks[prefix] =
       url: url
       key: key
       lock: lock
-    lock.acquire session.id(), contents, cb
+    console.log "Locking #{prefix}"
+    lock.acquire session.id(), contents, (success) ->
+      delete locks[prefix] if !success
+      cb success if cb?
 
   release: (url, key, contents, cb) ->
     prefix = "#{url}#{key}"
     if !session.isvalid() or !locks[prefix]?
       cb yes if cb?
       return
+    console.log "Releasing #{prefix}"
     locks[prefix].lock.release session.id(), contents, (success) ->
       delete locks[prefix]
       cb success if cb?
