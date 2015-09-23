@@ -6,46 +6,53 @@ consul = require('consul-utils');
 loghelper = require('./loghelper');
 
 module.exports = function(httpAddr) {
-  var _fin, _listeners, makewatch, res, sagas;
+  var _fin, _listeners, makewatch, readkv, res, sagas;
   _fin = false;
   sagas = {};
   _listeners = [];
+  readkv = function(url, keys) {
+    var i, instance, key, len, listener, log, results;
+    if (sagas[url] == null) {
+      console.error(url + " already deleted, how come I'm still watching?");
+      return;
+    }
+    keys = keys.filter(function(k) {
+      return k.Key !== url;
+    }).map(function(d) {
+      d.Key = d.Key.substr(url.length);
+      if (d.Value == null) {
+        d.Value = '';
+      }
+      return d;
+    });
+    results = [];
+    for (i = 0, len = keys.length; i < len; i++) {
+      key = keys[i];
+      log = loghelper.parse(key.Value);
+      instance = {
+        key: key.Key,
+        log: log,
+        interpreted: loghelper.interpret(log),
+        isavailable: key.Session == null
+      };
+      sagas[url].log[key.Key] = instance;
+      results.push((function() {
+        var j, len1, results1;
+        results1 = [];
+        for (j = 0, len1 = _listeners.length; j < len1; j++) {
+          listener = _listeners[j];
+          results1.push(listener(url, instance));
+        }
+        return results1;
+      })());
+    }
+    return results;
+  };
   makewatch = function(url) {
     return new consul.KV(httpAddr, url, {
       recurse: true
     }, function(keys) {
-      var i, instance, key, len, listener, log, results;
-      keys = keys.filter(function(k) {
-        return k.Key !== url;
-      }).map(function(d) {
-        d.Key = d.Key.substr(url.length);
-        if (d.Value == null) {
-          d.Value = '';
-        }
-        return d;
-      });
-      results = [];
-      for (i = 0, len = keys.length; i < len; i++) {
-        key = keys[i];
-        log = loghelper.parse(key.Value);
-        instance = {
-          key: key.Key,
-          log: log,
-          interpreted: loghelper.interpret(log),
-          isavailable: key.Session == null
-        };
-        sagas[url].log[key.Key] = instance;
-        results.push((function() {
-          var j, len1, results1;
-          results1 = [];
-          for (j = 0, len1 = _listeners.length; j < len1; j++) {
-            listener = _listeners[j];
-            results1.push(listener(url, instance));
-          }
-          return results1;
-        })());
-      }
-      return results;
+      return readkv(url, keys);
     });
   };
   return res = {
@@ -72,6 +79,23 @@ module.exports = function(httpAddr) {
         return null;
       }
       return sagas[url].log[key];
+    },
+    getinstancenow: function(url, key, cb) {
+      return consul.GetKV(httpAddr, "" + url + key, function(err, keys) {
+        if (err != null) {
+          return cb(err);
+        }
+        readkv(url, keys);
+        if (sagas[url].log[key] == null) {
+          return cb(null, {
+            key: key,
+            log: loghelper.blanklog(),
+            interpreted: loghelper.blankinterpretedlog(),
+            isavailable: true
+          });
+        }
+        return cb(null, sagas[url].log[key]);
+      });
     },
     onlog: function(cb) {
       _listeners.push(cb);

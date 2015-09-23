@@ -10,23 +10,13 @@ module.exports = function(logwatcher, loglocker, options) {
   ontask = options.ontask;
   queue = Queue({
     onitem: function(item, cb) {
-      return cb(true);
-    }
-  });
-  handle = logwatcher.onlog(function(url, instance) {});
-  return {
-    onmessage: function(url, sagakey, messagekey, e, cb) {
-      var retrymessage, trymessage;
-      console.log("MESSAGE " + url + sagakey + "." + messagekey + " " + e.msgid);
-      retrymessage = function(e, cb) {
-        console.log("Trying " + messagekey + " " + e.msgid + " again in 1 seconds");
-        return setTimeout(function() {
-          return trymessage(e, cb);
-        }, 1000);
-      };
-      trymessage = function(e, cb) {
-        var instance, interpreted, log;
-        instance = logwatcher.getinstance(url, sagakey);
+      var instance;
+      return instance = logwatcher.getinstancenow(item.url, item.sagakey, function(err, instance) {
+        var interpreted, log;
+        if (err != null) {
+          console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " UNABLE TO LOAD");
+          return cb(false);
+        }
         log = instance != null ? instance.log : void 0;
         if (log == null) {
           log = [];
@@ -35,28 +25,41 @@ module.exports = function(logwatcher, loglocker, options) {
         if (interpreted == null) {
           interpreted = loghelper.blankinterpretedlog();
         }
-        if (interpreted.handledmessages[e.msgid] != null) {
-          console.log("Message " + e.msgid + " already seen");
-          return cb();
+        if (interpreted.handledmessages[item.message.msgid] != null) {
+          console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " ALREADY SEEN");
+          return cb(true);
         }
-        return loglocker.acquire(url, sagakey, loghelper.stringify(log), function(success) {
+        return loglocker.acquire(item.url, item.sagakey, loghelper.stringify(log), function(success) {
           if (!success) {
-            return retrymessage(e, cb);
+            console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " COULD NOT LOCK");
+            return cb(false);
           }
           log.push({
             type: 'handledmessage',
-            id: e.msgid
+            id: item.message.msgid
           });
-          return loglocker.release(url, sagakey, loghelper.stringify(log), function(success) {
+          return loglocker.release(item.url, item.sagakey, loghelper.stringify(log), function(success) {
             if (!success) {
-              return retrymessage(e, cb);
+              console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " UNABLE TO COMPLETE WRITE");
+              return cb(false);
             }
-            console.log(e.msgid + " written to log");
-            return cb();
+            console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " WRITTEN TO LOG");
+            return cb(true);
           });
         });
-      };
-      return trymessage(e, cb);
+      });
+    }
+  });
+  handle = logwatcher.onlog(function(url, instance) {});
+  return {
+    onmessage: function(url, sagakey, messagekey, e, cb) {
+      return queue.enqueue({
+        url: url,
+        sagakey: sagakey,
+        messagekey: messagekey,
+        message: e,
+        cb: cb
+      });
     },
     ontimeout: function(url, sagakey, timeoutkey, value) {
       return console.log("TIMEOUT " + url + sagakey + "." + timeoutkey);

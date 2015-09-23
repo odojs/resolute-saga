@@ -30,10 +30,15 @@ hub.every 'message', (e, cb) ->
   unifier.onmessage 'sagas/saga1/', 'exe1', 'message', e, cb
 
 # These messages would normally come from an external location
-async = require 'odo-async'
-async.delay ->
+
+setTimeout ->
   hub.emit 'message', { msgid: 1, value: 'awesome' }
   hub.emit 'message', { msgid: 2, value: 'awesome' }
+, 500
+
+setTimeout ->
+  hub.emit 'message', { msgid: 3, value: 'awesome' }
+, 5000
 
 # Exit in weird and wonderful ways
 exittimeout = null

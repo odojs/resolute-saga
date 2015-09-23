@@ -29,7 +29,6 @@ module.exports = function(httpAddr) {
         key: key,
         lock: lock
       };
-      console.log("Locking " + prefix);
       return lock.acquire(session.id(), contents, function(success) {
         if (!success) {
           delete locks[prefix];
@@ -48,7 +47,6 @@ module.exports = function(httpAddr) {
         }
         return;
       }
-      console.log("Releasing " + prefix);
       return locks[prefix].lock.release(session.id(), contents, function(success) {
         delete locks[prefix];
         if (cb != null) {

@@ -6,43 +6,48 @@ module.exports = (logwatcher, loglocker, options) ->
   ontask = options.ontask
 
   queue = Queue onitem: (item, cb) ->
-    cb yes
+    instance = logwatcher.getinstancenow item.url, item.sagakey, (err, instance) ->
+      if err?
+        console.log "MESSAGE #{item.url}#{item.sagakey}.#{item.messagekey} #{item.message.msgid} UNABLE TO LOAD"
+        return cb no
 
-  handle = logwatcher.onlog (url, instance) ->
-    # purge items in queue if found in log
-
-  onmessage: (url, sagakey, messagekey, e, cb) ->
-    console.log "MESSAGE #{url}#{sagakey}.#{messagekey} #{e.msgid}"
-
-    retrymessage = (e, cb) ->
-      console.log "Trying #{messagekey} #{e.msgid} again in 1 seconds"
-      setTimeout ->
-        trymessage e, cb
-      , 1000
-
-    trymessage = (e, cb) ->
-      instance = logwatcher.getinstance url, sagakey
       log = instance?.log
       log ?= []
 
       # if the message has already been seen then all good
       interpreted = instance?.interpreted
       interpreted ?= loghelper.blankinterpretedlog()
-      if interpreted.handledmessages[e.msgid]?
-        console.log "Message #{e.msgid} already seen"
-        return cb()
+      if interpreted.handledmessages[item.message.msgid]?
+        console.log "MESSAGE #{item.url}#{item.sagakey}.#{item.messagekey} #{item.message.msgid} ALREADY SEEN"
+        return cb yes
 
-      loglocker.acquire url, sagakey, loghelper.stringify(log), (success) ->
-        return retrymessage e, cb if !success
+      # Need to lock something separate to log?
+      # So the lock doesn't need to know the contents?
+      loglocker.acquire item.url, item.sagakey, loghelper.stringify(log), (success) ->
+        if !success
+          console.log "MESSAGE #{item.url}#{item.sagakey}.#{item.messagekey} #{item.message.msgid} COULD NOT LOCK"
+          return cb no
         log.push
           type: 'handledmessage'
-          id: e.msgid
-        loglocker.release url, sagakey, loghelper.stringify(log), (success) ->
-          return retrymessage e, cb if !success
-          console.log "#{e.msgid} written to log"
-          cb()
+          id: item.message.msgid
+        loglocker.release item.url, item.sagakey, loghelper.stringify(log), (success) ->
+          if !success
+            console.log "MESSAGE #{item.url}#{item.sagakey}.#{item.messagekey} #{item.message.msgid} UNABLE TO COMPLETE WRITE"
+            return cb no
+          console.log "MESSAGE #{item.url}#{item.sagakey}.#{item.messagekey} #{item.message.msgid} WRITTEN TO LOG"
+          cb yes
 
-    trymessage e, cb
+  handle = logwatcher.onlog (url, instance) ->
+    # purge items in queue if found in log
+
+  onmessage: (url, sagakey, messagekey, e, cb) ->
+    #console.log "MESSAGE #{url}#{sagakey}.#{messagekey} #{e.msgid}"
+    queue.enqueue
+      url: url
+      sagakey: sagakey
+      messagekey: messagekey
+      message: e
+      cb: cb
 
   ontimeout: (url, sagakey, timeoutkey, value) ->
     console.log "TIMEOUT #{url}#{sagakey}.#{timeoutkey}"

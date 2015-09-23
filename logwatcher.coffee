@@ -8,23 +8,29 @@ module.exports = (httpAddr) ->
 
   _listeners = []
 
+  readkv = (url, keys) ->
+    if !sagas[url]?
+      console.error "#{url} already deleted, how come I'm still watching?"
+      return
+    keys = keys
+      .filter (k) -> k.Key isnt url
+      .map (d) ->
+        d.Key = d.Key.substr url.length
+        d.Value ?= ''
+        d
+    for key in keys
+      log = loghelper.parse key.Value
+      instance =
+        key: key.Key
+        log: log
+        interpreted: loghelper.interpret log
+        isavailable: !key.Session?
+      sagas[url].log[key.Key] = instance
+      listener url, instance for listener in _listeners
+
   makewatch = (url) ->
     new consul.KV httpAddr, url, { recurse: yes }, (keys) ->
-      keys = keys
-        .filter (k) -> k.Key isnt url
-        .map (d) ->
-          d.Key = d.Key.substr url.length
-          d.Value ?= ''
-          d
-      for key in keys
-        log = loghelper.parse key.Value
-        instance =
-          key: key.Key
-          log: log
-          interpreted: loghelper.interpret log
-          isavailable: !key.Session?
-        sagas[url].log[key.Key] = instance
-        listener url, instance for listener in _listeners
+      readkv url, keys
 
   res =
     watch: (url) ->
@@ -45,6 +51,18 @@ module.exports = (httpAddr) ->
     getinstance: (url, key) ->
       return null if !sagas[url]?
       sagas[url].log[key]
+
+    getinstancenow: (url, key, cb) ->
+      consul.GetKV httpAddr, "#{url}#{key}", (err, keys) ->
+        return cb err if err?
+        readkv url, keys
+        if !sagas[url].log[key]?
+          return cb null,
+            key: key
+            log: loghelper.blanklog()
+            interpreted: loghelper.blankinterpretedlog()
+            isavailable: yes
+        cb null, sagas[url].log[key]
 
     onlog: (cb) ->
       _listeners.push cb

@@ -19,7 +19,7 @@ module.exports = (httpAddr) ->
       url: url
       key: key
       lock: lock
-    console.log "Locking #{prefix}"
+    #console.log "Locking #{prefix}"
     lock.acquire session.id(), contents, (success) ->
       delete locks[prefix] if !success
       cb success if cb?
@@ -29,7 +29,7 @@ module.exports = (httpAddr) ->
     if !session.isvalid() or !locks[prefix]?
       cb yes if cb?
       return
-    console.log "Releasing #{prefix}"
+    #console.log "Releasing #{prefix}"
     locks[prefix].lock.release session.id(), contents, (success) ->
       delete locks[prefix]
       cb success if cb?
