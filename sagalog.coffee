@@ -1,6 +1,9 @@
 consul = require 'consul-utils'
 loghelper = require './loghelper'
 
+strendswith = (str, suffix) ->
+  str.indexOf(suffix, str.length - suffix.length) isnt -1
+
 module.exports = (httpAddr) ->
   _fin = no
 
@@ -14,17 +17,17 @@ module.exports = (httpAddr) ->
       return
     keys = keys
       .filter (k) -> k.Key isnt url
+      .filter (k) -> strendswith k.Key, '.log'
       .map (d) ->
         d.Key = d.Key.substr url.length
+        d.Key = d.Key.substr 0, d.Key.length - 4
         d.Value ?= ''
         d
     for key in keys
       log = loghelper.parse key.Value
       instance =
-        key: key.Key
         log: log
         interpreted: loghelper.interpret log
-        isavailable: !key.Session?
       sagas[url].log[key.Key] = instance
       listener url, instance for listener in _listeners
 
@@ -32,14 +35,16 @@ module.exports = (httpAddr) ->
     new consul.KV httpAddr, url, { recurse: yes }, (keys) ->
       readkv url, keys
 
+  getblanklog = (key) ->
+    log: loghelper.blanklog()
+    interpreted: loghelper.blankinterpretedlog()
+
   res =
     watch: (url) ->
       return if sagas[url]?
 
       sagas[url] =
-        url: url
         log: {}
-        available: []
 
       sagas[url].watch = makewatch url
 
@@ -48,20 +53,24 @@ module.exports = (httpAddr) ->
       sagas[url].watch.end()
       delete sagas[url]
 
-    getinstance: (url, key) ->
-      return null if !sagas[url]?
+    getoutdated: (url, key) ->
+      return getblanklog key if !sagas[url]?
+      return getblanklog key if !sagas[url].log[key]?
       sagas[url].log[key]
 
-    getinstancenow: (url, key, cb) ->
-      consul.GetKV httpAddr, "#{url}#{key}", (err, keys) ->
+    get: (url, key, cb) ->
+      consul.GetKV httpAddr, "#{url}#{key}.log", (err, keys) ->
         return cb err if err?
         readkv url, keys
         if !sagas[url].log[key]?
-          return cb null,
-            key: key
-            log: loghelper.blanklog()
-            interpreted: loghelper.blankinterpretedlog()
-            isavailable: yes
+          return cb null, getblanklog key
+        cb null, sagas[url].log[key]
+
+    set: (url, key, content, cb) ->
+      content = loghelper.stringify content
+      consul.SetKV httpAddr, "#{url}#{key}.log", content, (err) ->
+        return cb err if err?
+        sagas[url].log[key] = loghelper.parse content
         cb null, sagas[url].log[key]
 
     onlog: (cb) ->

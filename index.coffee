@@ -1,5 +1,5 @@
-logwatcher = require './logwatcher'
-loglocker = require './loglocker'
+sagalog = require './sagalog'
+sagalock = require './sagalock'
 loghelper = require './loghelper'
 resolute = require 'resolute'
 subscriptions = require 'resolute/subscriptions'
@@ -11,19 +11,19 @@ sagainterval = require './sagainterval'
 hub = require('odo-hub/hub') require('odo-hub/dispatch_parallel')()
 
 # Connect components together to make a monster
-logwatcher = logwatcher 'docker:8500'
-loglocker = loglocker 'docker:8500'
-sagatimeout = sagatimeout logwatcher, ontimeout: unifier.ontimeout
-sagainterval = sagainterval logwatcher, oninterval: unifier.oninterval
+sagalog = sagalog 'docker:8500'
+sagalock = sagalock 'docker:8500'
+sagatimeout = sagatimeout sagalog, ontimeout: unifier.ontimeout
+sagainterval = sagainterval sagalog, oninterval: unifier.oninterval
 bus = resolute bind: 'tcp://127.0.0.1:12345', datadir: './12345'
 subscriptions = subscriptions bus
 dispatcher = dispatcher subscriptions, hub
-unifier = unifier logwatcher, loglocker, ontask: dispatcher.ontask
+unifier = unifier sagalog, sagalock, ontask: dispatcher.ontask
 
 # Would get these from configuration somewhere
 subscriptions.bind 'weather update', 'tcp://127.0.0.1:12346'
 dispatcher.register 'sagas/saga1/', require './testsaga'
-logwatcher.watch 'sagas/saga1/'
+sagalog.watch 'sagas/saga1/'
 
 # This would be something the dispatcher sets up
 hub.every 'message', (e, cb) ->
@@ -47,8 +47,8 @@ process.on 'SIGINT', ->
     clearTimeout exittimeout
     bus.close()
     unifier.destroy()
-    logwatcher.destroy()
-    loglocker.destroy()
+    sagalog.destroy()
+    sagalock.destroy()
   exit = ->
     close()
     process.exit 0

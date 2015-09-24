@@ -5,52 +5,78 @@ loghelper = require('./loghelper');
 
 Queue = require('seuss-backoff');
 
-module.exports = function(logwatcher, loglocker, options) {
+module.exports = function(sagalog, sagalock, options) {
   var handle, ontask, queue;
   ontask = options.ontask;
   queue = Queue({
     onitem: function(item, cb) {
-      var instance;
-      return instance = logwatcher.getinstancenow(item.url, item.sagakey, function(err, instance) {
-        var interpreted, log;
-        if (err != null) {
-          console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " UNABLE TO LOAD");
+      var instance, interpreted, log, message;
+      message = function(msg) {
+        return "MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " " + msg;
+      };
+      instance = sagalog.getoutdated(item.url, item.sagakey);
+      if (typeof err !== "undefined" && err !== null) {
+        console.log(message('UNABLE TO LOAD'));
+        return cb(false);
+      }
+      log = instance != null ? instance.log : void 0;
+      if (log == null) {
+        log = [];
+      }
+      interpreted = instance != null ? instance.interpreted : void 0;
+      if (interpreted == null) {
+        interpreted = loghelper.blankinterpretedlog();
+      }
+      if (interpreted.handledmessages[item.message.msgid] != null) {
+        console.log(message('ALREADY SEEN'));
+        return cb(true);
+      }
+      return sagalock.acquire(item.url, item.sagakey, function(success) {
+        if (!success) {
+          console.log(message('COULD NOT LOCK'));
           return cb(false);
         }
-        log = instance != null ? instance.log : void 0;
-        if (log == null) {
-          log = [];
-        }
-        interpreted = instance != null ? instance.interpreted : void 0;
-        if (interpreted == null) {
-          interpreted = loghelper.blankinterpretedlog();
-        }
-        if (interpreted.handledmessages[item.message.msgid] != null) {
-          console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " ALREADY SEEN");
-          return cb(true);
-        }
-        return loglocker.acquire(item.url, item.sagakey, loghelper.stringify(log), function(success) {
-          if (!success) {
-            console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " COULD NOT LOCK");
-            return cb(false);
+        return sagalog.get(item.url, item.sagakey, function(err, instance) {
+          var alreadyseen;
+          if (err != null) {
+            console.log(message('UNABLE TO COMPLETE READ'));
+          }
+          log = instance != null ? instance.log : void 0;
+          if (log == null) {
+            log = [];
+          }
+          interpreted = instance != null ? instance.interpreted : void 0;
+          if (interpreted == null) {
+            interpreted = loghelper.blankinterpretedlog();
+          }
+          alreadyseen = interpreted.handledmessages[item.message.msgid] != null;
+          if (alreadyseen) {
+            console.log(message('ALREADY SEEN'));
+          }
+          if ((err != null) || alreadyseen) {
+            return sagalock.release(item.url, item.sagakey, function() {
+              return cb(false);
+            });
           }
           log.push({
             type: 'handledmessage',
             id: item.message.msgid
           });
-          return loglocker.release(item.url, item.sagakey, loghelper.stringify(log), function(success) {
-            if (!success) {
-              console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " UNABLE TO COMPLETE WRITE");
-              return cb(false);
-            }
-            console.log("MESSAGE " + item.url + item.sagakey + "." + item.messagekey + " " + item.message.msgid + " WRITTEN TO LOG");
-            return cb(true);
+          return sagalog.set(item.url, item.sagakey, log, function(err) {
+            return sagalock.release(item.url, item.sagakey, function(success) {
+              if (!success || (err != null)) {
+                console.log(message('UNABLE TO COMPLETE WRITE'));
+                return cb(false);
+              }
+              console.log(message('WRITTEN TO LOG'));
+              return cb(true);
+            });
           });
         });
       });
     }
   });
-  handle = logwatcher.onlog(function(url, instance) {});
+  handle = sagalog.onlog(function(url, instance) {});
   return {
     onmessage: function(url, sagakey, messagekey, e, cb) {
       return queue.enqueue({

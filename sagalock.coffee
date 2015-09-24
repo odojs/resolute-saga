@@ -1,4 +1,5 @@
 consul = require 'consul-utils'
+os = require 'os'
 
 module.exports = (httpAddr) ->
   _fin = no
@@ -9,7 +10,7 @@ module.exports = (httpAddr) ->
   session.run
     ondown: -> locks = {}
 
-  acquire: (url, key, contents, cb) ->
+  acquire: (url, key, cb) ->
     prefix = "#{url}#{key}"
     if !session.isvalid() or locks[prefix]?
       cb no if cb?
@@ -20,17 +21,17 @@ module.exports = (httpAddr) ->
       key: key
       lock: lock
     #console.log "Locking #{prefix}"
-    lock.acquire session.id(), contents, (success) ->
+    lock.acquire session.id(), os.hostname(), (success) ->
       delete locks[prefix] if !success
       cb success if cb?
 
-  release: (url, key, contents, cb) ->
+  release: (url, key, cb) ->
     prefix = "#{url}#{key}"
     if !session.isvalid() or !locks[prefix]?
       cb yes if cb?
       return
     #console.log "Releasing #{prefix}"
-    locks[prefix].lock.release session.id(), contents, (success) ->
+    locks[prefix].lock.release session.id(), null, (success) ->
       delete locks[prefix]
       cb success if cb?
 
