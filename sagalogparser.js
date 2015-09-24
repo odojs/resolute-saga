@@ -19,7 +19,7 @@ blank = function() {
 module.exports = {
   blank: blank,
   parse: function(content) {
-    var anchor, count, data, i, index, interval, key, len, params, ref, result, s, timeout, unit;
+    var anchor, count, data, i, index, key, len, params, ref, result, s, timeout, unit, value;
     result = blank();
     ref = content.split('\n');
     for (index = i = 0, len = ref.length; i < len; index = ++i) {
@@ -56,12 +56,12 @@ module.exports = {
         }
       } else if (s[0] === 'i') {
         if (params.length === 5) {
-          key = params[0], anchor = params[1], count = params[2], unit = params[3], interval = params[4];
+          key = params[0], anchor = params[1], count = params[2], unit = params[3], value = params[4];
           result.intervals[key] = {
             anchor: moment.utc(anchor, iso8601),
             count: count,
             unit: unit,
-            interval: interval
+            value: value
           };
         } else if (params.length === 4) {
           key = params[0], anchor = params[1], count = params[2], unit = params[3];
@@ -120,8 +120,8 @@ module.exports = {
     ref3 = log.intervals;
     for (key in ref3) {
       interval = ref3[key];
-      if (interval.interval != null) {
-        r.push("interval " + key + " " + (interval.anchor.format(iso8601)) + " " + interval.count + " " + interval.unit + " " + interval.interval);
+      if (interval.value != null) {
+        r.push("interval " + key + " " + (interval.anchor.format(iso8601)) + " " + interval.count + " " + interval.unit + " " + interval.value);
       } else {
         r.push("interval " + key + " " + (interval.anchor.format(iso8601)) + " " + interval.count + " " + interval.unit);
       }

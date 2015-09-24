@@ -43,14 +43,14 @@ module.exports =
           continue
       # intervals start with i
       else if s[0] is 'i'
-        # interval is optional (will discover next closest)
+        # value is optional (will discover next closest)
         if params.length is 5
-          [key, anchor, count, unit, interval] = params
+          [key, anchor, count, unit, value] = params
           result.intervals[key] =
             anchor: moment.utc anchor, iso8601
             count: count
             unit: unit
-            interval: interval
+            value: value
         else if params.length is 4
           [key, anchor, count, unit] = params
           result.intervals[key] =
@@ -93,8 +93,8 @@ module.exports =
     r.push ''
     r.push '# Intervals'
     for key, interval of log.intervals
-      if interval.interval?
-        r.push "interval #{key} #{interval.anchor.format iso8601} #{interval.count} #{interval.unit} #{interval.interval}"
+      if interval.value?
+        r.push "interval #{key} #{interval.anchor.format iso8601} #{interval.count} #{interval.unit} #{interval.value}"
       else
         r.push "interval #{key} #{interval.anchor.format iso8601} #{interval.count} #{interval.unit}"
     for key, _ of log.intervaltombstones

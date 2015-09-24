@@ -84,12 +84,12 @@ module.exports = function(httpAddr) {
     },
     getoutdated: function(url, key) {
       if (sagas[url] == null) {
-        return getblanklog(key);
+        return LOG.blank();
       }
       if (sagas[url].log[key] == null) {
-        return getblanklog(key);
+        return LOG.blank();
       }
-      return sagas[url].log[key];
+      return sagas[url].log[key].log;
     },
     get: function(url, key, cb) {
       return consul.GetKV(httpAddr, "" + url + key + ".log", function(err, keys) {
@@ -98,9 +98,9 @@ module.exports = function(httpAddr) {
         }
         readkv(url, keys);
         if (sagas[url].log[key] == null) {
-          return cb(null, getblanklog(key));
+          return cb(null, LOG.blank());
         }
-        return cb(null, sagas[url].log[key]);
+        return cb(null, sagas[url].log[key].log);
       });
     },
     set: function(url, key, content, cb) {

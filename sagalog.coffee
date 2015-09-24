@@ -53,17 +53,17 @@ module.exports = (httpAddr) ->
       delete sagas[url]
 
     getoutdated: (url, key) ->
-      return getblanklog key if !sagas[url]?
-      return getblanklog key if !sagas[url].log[key]?
-      sagas[url].log[key]
+      return LOG.blank() if !sagas[url]?
+      return LOG.blank() if !sagas[url].log[key]?
+      sagas[url].log[key].log
 
     get: (url, key, cb) ->
       consul.GetKV httpAddr, "#{url}#{key}.log", (err, keys) ->
         return cb err if err?
         readkv url, keys
         if !sagas[url].log[key]?
-          return cb null, getblanklog key
-        cb null, sagas[url].log[key]
+          return cb null, LOG.blank()
+        cb null, sagas[url].log[key].log
 
     set: (url, key, content, cb) ->
       content = LOG.stringify content

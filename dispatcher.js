@@ -38,7 +38,7 @@ module.exports = function(subscriptions, hub) {
         },
         ready: function() {
           return async.series(tasks, function() {
-            console.log(url + " configured");
+            console.log("configured " + url);
             sagas[url] = sagacontext;
             if (cb != null) {
               return cb();

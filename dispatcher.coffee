@@ -27,7 +27,7 @@ module.exports = (subscriptions, hub) ->
             cb()
         ready: ->
           async.series tasks, ->
-            console.log "#{url} configured"
+            console.log "configured #{url}"
             sagas[url] = sagacontext
             cb() if cb?
 
