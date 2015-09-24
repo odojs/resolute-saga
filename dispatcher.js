@@ -62,48 +62,18 @@ module.exports = function(subscriptions, hub) {
         return cb();
       }
     },
-    ontask: function(context, messagekey, e, cb) {
-      var instance, result, sagacontext;
-      if (sagas[context.url] == null) {
-        return context.error('Saga url not registered');
-      }
-      sagacontext = sagas[context.url];
-      result = [];
-      instance = sagacontext.module.instance({
-        settimeout: function(id, timeout) {
-          return result.push({
-            type: 'timeout',
-            id: id,
-            timeout: timeout.format('YYYY-MM-DD[T]HH:mm:ssZ')
-          });
-        },
-        setinterval: function(id, anchor, count, unit, start) {
-          return result.push({
-            type: 'interval',
-            id: id,
-            anchor: anchor.format('YYYY-MM-DD[T]HH:mm:ssZ'),
-            count: count,
-            unit: unit,
-            start: start
-          });
-        },
-        setdata: function(id, data) {
-          return result.push({
-            type: 'data',
-            id: id,
-            data: data
-          });
-        },
-        getdata: function(id) {
-          return context.interpreted.data[id];
-        }
-      });
-      return instance[messagekey](e, function(err) {
-        if (err != null) {
-          return context.error(err);
-        }
-        return context.result(result);
-      });
+    onmessage: function(log, item, cb) {
+      log.messagetombstones[item.message.msgid] = true;
+      return cb(true);
+    },
+    ontimeout: function(log, item, cb) {
+      delete log.timeouts[item.timeoutkey];
+      log.timeouttombstones[item.timeoutkey] = true;
+      return cb(true);
+    },
+    oninterval: function(log, item, cb) {
+      log.intervals[item.intervalkey].value = item.value;
+      return cb(true);
     },
     end: function(cb) {
       var _, fn1, tasks, url;

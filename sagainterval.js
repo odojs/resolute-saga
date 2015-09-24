@@ -44,14 +44,14 @@ module.exports = function(sagalog, options) {
         delete intervals[key];
       }
       results.push((function(key, interval) {
-        var timer, value;
-        value = interval.value;
-        if (value != null) {
-          value++;
+        var target, timer;
+        target = interval.value;
+        if (target != null) {
+          target++;
         }
         timer = interval.anchor.every(interval.count, interval.unit);
-        return intervals[key] = timer.timer(value, function(value, count) {
-          return oninterval(url, instance.key, key, count, value);
+        return intervals[key] = timer.timer(target, function(value, count) {
+          return oninterval(url, instance.key, key, interval.anchor, interval.count, interval.unit, count, value);
         });
       })(key, interval));
     }

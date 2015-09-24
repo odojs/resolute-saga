@@ -25,11 +25,11 @@ module.exports = (sagalog, options) ->
         intervals[key].end()
         delete intervals[key]
       do (key, interval) ->
-        value = interval.value
-        value++ if value?
+        target = interval.value
+        target++ if target?
         timer = interval.anchor.every interval.count, interval.unit
-        intervals[key] = timer.timer value, (value, count) ->
-          oninterval url, instance.key, key, count, value
+        intervals[key] = timer.timer target, (value, count) ->
+          oninterval url, instance.key, key, interval.anchor, interval.count, interval.unit, count, value
 
   destroy: ->
     handle.off()

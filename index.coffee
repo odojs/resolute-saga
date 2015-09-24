@@ -3,7 +3,7 @@ sagalock = require './sagalock'
 resolute = require 'resolute'
 subscriptions = require 'resolute/subscriptions'
 dispatcher = require './dispatcher'
-unifier = require './unifier'
+coordinator = require './coordinator'
 sagatimeout = require './sagatimeout'
 sagainterval = require './sagainterval'
 
@@ -14,9 +14,12 @@ sagalog = sagalog 'docker:8500'
 sagalock = sagalock 'docker:8500'
 subscriptions = subscriptions bus
 dispatcher = dispatcher subscriptions, hub
-unifier = unifier sagalog, sagalock, ontask: dispatcher.ontask
-sagatimeout = sagatimeout sagalog, ontimeout: unifier.ontimeout
-sagainterval = sagainterval sagalog, oninterval: unifier.oninterval
+coordinator = coordinator sagalog, sagalock,
+  onmessage: dispatcher.onmessage
+  ontimeout: dispatcher.ontimeout
+  oninterval: dispatcher.oninterval
+sagatimeout = sagatimeout coordinator, ontimeout: coordinator.ontimeout
+sagainterval = sagainterval coordinator, oninterval: coordinator.oninterval
 bus = resolute bind: 'tcp://127.0.0.1:12345', datadir: './12345'
 
 # Would get these from configuration somewhere
@@ -26,7 +29,7 @@ sagalog.watch 'sagas/saga1/'
 
 # This would be something the dispatcher sets up
 hub.every 'message', (e, cb) ->
-  unifier.onmessage 'sagas/saga1/', 'exe1', 'message', e, cb
+  coordinator.onmessage 'sagas/saga1/', 'exe1', 'message', e, cb
 
 # These messages would normally come from an external location
 
@@ -45,7 +48,7 @@ process.on 'SIGINT', ->
   close = ->
     clearTimeout exittimeout
     bus.close()
-    unifier.destroy()
+    coordinator.destroy()
     sagalog.destroy()
     sagalock.destroy()
   exit = ->
@@ -57,7 +60,7 @@ process.on 'SIGINT', ->
   console.log '(^C again to quit)'
   sagatimeout.destroy()
   sagainterval.destroy()
-  dispatcher.end ->
-    bus.drain ->
-      unifier.drain ->
+  bus.drain ->
+    coordinator.drain ->
+      dispatcher.end ->
         close()

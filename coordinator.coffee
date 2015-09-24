@@ -2,7 +2,8 @@ Queue = require 'seuss-backoff'
 iso8601 = require './iso8601'
 
 module.exports = (sagalog, sagalock, options) ->
-  ontask = options.ontask
+  { onmessage, ontimeout, oninterval } = options
+  _listeners = []
 
   open = (item, message, cb) ->
     sagalock.acquire item.url, item.sagakey, (success) ->
@@ -28,7 +29,24 @@ module.exports = (sagalog, sagalock, options) ->
           console.log message 'WRITTEN TO LOG'
         else
           console.log message 'WRITTEN TO LOG, UNABLE TO RELEASE LOCK'
-        return cb yes
+        cb yes
+
+  # Debounce updates while chewing through a backlog
+  # This is essential for intervals
+  _pendingupdates = {}
+  _updateswilldrain = no
+  handle = sagalog.onlog (url, instance) ->
+    _pendingupdates[url] = {} if !_pendingupdates[url]?
+    _pendingupdates[url][instance.key] = instance
+    if !_updateswilldrain
+      _updateswilldrain = yes
+      queue.drain ->
+        for url, sagaupdates of _pendingupdates
+          for _, instance of sagaupdates
+            for listener in _listeners
+              listener url, instance
+        _pendingupdates = {}
+        _updateswilldrain = no
 
   queue = Queue onitem: (item, cb) ->
     if item.type is 'message'
@@ -48,9 +66,11 @@ module.exports = (sagalog, sagalock, options) ->
         if alreadyseenin log
           return sagalock.release item.url, item.sagakey, -> cb yes
 
-        log.messagetombstones[item.message.msgid] = yes
-
-        commit item, log, message, cb
+        onmessage log, item, (success) ->
+          if success
+            commit item, log, message, cb
+          else
+            sagalock.release item.url, item.sagakey, -> cb yes
     else if item.type is 'timeout'
       message = (msg) -> "#{item.url}#{item.sagakey} TIMEOUT #{item.timeoutkey}@#{item.value.format iso8601} #{msg}"
       alreadyseenin = (log) ->
@@ -58,51 +78,65 @@ module.exports = (sagalog, sagalock, options) ->
           console.log message 'TOMBSTONED'
           return yes
         no
+      timeoutisinlog = (log) ->
+        return yes if log.timeouts[item.timeoutkey].isSame item.value
+        console.log message 'NOT SAME TIMEOUT'
+        no
 
       log = sagalog.getoutdated item.url, item.sagakey
-      return cb yes if alreadyseenin log
+      if !timeoutisinlog(log) or alreadyseenin(log)
+        return cb yes
 
       open item, message, (success, log) ->
         return cb no if !success
 
-        if alreadyseenin log
+        if !timeoutisinlog(log) or alreadyseenin(log)
           return sagalock.release item.url, item.sagakey, -> cb yes
 
-        delete log.timeouts[item.timeoutkey]
-        log.timeouttombstones[item.timeoutkey] = yes
-
-        commit item, log, message, cb
+        ontimeout log, item, (success) ->
+          if success
+            commit item, log, message, cb
+          else
+            sagalock.release item.url, item.sagakey, -> cb yes
     else if item.type is 'interval'
-      message = (msg) -> "#{item.url}#{item.sagakey} INTERVAL #{item.intervalkey}@#{item.value.format iso8601}*#{item.count} #{msg}"
+      message = (msg) -> "#{item.url}#{item.sagakey} INTERVAL #{item.intervalkey}@#{item.anchor.format iso8601} #{item.count}#{item.unit}*#{item.value} #{msg}"
       alreadyseenin = (log) ->
         if log.intervaltombstones[item.intervalkey]?
           console.log message 'TOMBSTONED'
           return yes
-        if log.intervals[item.intervalkey].value >= item.count
+        if log.intervals[item.intervalkey].value >= item.value
           console.log message 'ALREADY SEEN'
           return yes
         no
       isfutureevent = (log) ->
-        if log.intervals[item.intervalkey].value + 1 < item.count
+        if log.intervals[item.intervalkey].value + 1 < item.value
           console.log message 'FUTURE EVENT'
+          return yes
+        no
+      intervalisinlog = (log) ->
+        return no if !log.intervals[item.intervalkey]?
+        loginterval = log.intervals[item.intervalkey]
+        if loginterval.anchor.isSame(item.anchor) and loginterval.count is item.count and loginterval.unit is item.unit
           return yes
         no
 
       log = sagalog.getoutdated item.url, item.sagakey
-      return cb yes if alreadyseenin log
+      return cb yes if !intervalisinlog(log) or alreadyseenin(log)
       return cb no if isfutureevent log
 
       open item, message, (success, log) ->
         return cb no if !success
 
-        if alreadyseenin log
+        if !intervalisinlog(log) or alreadyseenin(log)
           return sagalock.release item.url, item.sagakey, -> cb yes
         if isfutureevent log
           return sagalock.release item.url, item.sagakey, -> cb no
 
-        log.intervals[item.intervalkey].value = item.count
-
-        commit item, log, message, cb
+        oninterval log, item, (success) ->
+          if success
+            commit item, log, message, cb
+          else
+            sagalock.release item.url, item.sagakey, -> cb yes
     else
       console.log "Unknown task #{item.type}. Ignoring..."
       cb yes
@@ -122,15 +156,25 @@ module.exports = (sagalog, sagalock, options) ->
       sagakey: sagakey
       timeoutkey: timeoutkey
       value: value
-  oninterval: (url, sagakey, intervalkey, count, value) ->
+  oninterval: (url, sagakey, intervalkey, anchor, count, unit, value, time) ->
     queue.enqueue
       type: 'interval'
       url: url
       sagakey: sagakey
       intervalkey: intervalkey
+      anchor: anchor
       count: count
+      unit: unit
       value: value
+      time: time
+  onlog: (cb) ->
+    _listeners.push cb
+    off: ->
+      index = _listeners.indexOf cb
+      if index isnt -1
+        _listeners.splice index, 1
   drain: (cb) ->
     queue.drain cb
   destroy: ->
+    handle.off()
     queue.destroy()

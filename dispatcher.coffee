@@ -42,35 +42,46 @@ module.exports = (subscriptions, hub) ->
         delete sagas[url]
       cb() if cb?
 
-    ontask: (context, messagekey, e, cb) ->
-      if !sagas[context.url]?
-        return context.error 'Saga url not registered'
-      sagacontext = sagas[context.url]
-      result = []
-      instance = sagacontext.module.instance
-        settimeout: (id, timeout) ->
-          result.push
-            type: 'timeout'
-            id: id
-            timeout: timeout.format 'YYYY-MM-DD[T]HH:mm:ssZ'
-        setinterval: (id, anchor, count, unit, start) ->
-          result.push
-            type: 'interval'
-            id: id
-            anchor: anchor.format 'YYYY-MM-DD[T]HH:mm:ssZ'
-            count: count
-            unit: unit
-            start: start
-        setdata: (id, data) ->
-          result.push
-            type: 'data'
-            id: id
-            data: data
-        getdata: (id) ->
-          context.interpreted.data[id]
-      instance[messagekey] e, (err) ->
-        return context.error err if err?
-        context.result result
+    onmessage: (log, item, cb) ->
+      log.messagetombstones[item.message.msgid] = yes
+      cb yes
+      # if !sagas[context.url]?
+      #   return context.error 'Saga url not registered'
+      # sagacontext = sagas[context.url]
+      # result = []
+      # instance = sagacontext.module.instance
+      #   settimeout: (id, timeout) ->
+      #     result.push
+      #       type: 'timeout'
+      #       id: id
+      #       timeout: timeout.format 'YYYY-MM-DD[T]HH:mm:ssZ'
+      #   setinterval: (id, anchor, count, unit, start) ->
+      #     result.push
+      #       type: 'interval'
+      #       id: id
+      #       anchor: anchor.format 'YYYY-MM-DD[T]HH:mm:ssZ'
+      #       count: count
+      #       unit: unit
+      #       start: start
+      #   setdata: (id, data) ->
+      #     result.push
+      #       type: 'data'
+      #       id: id
+      #       data: data
+      #   getdata: (id) ->
+      #     context.interpreted.data[id]
+      # instance[messagekey] e, (err) ->
+      #   return context.error err if err?
+      #   context.result result
+
+    ontimeout: (log, item, cb) ->
+      delete log.timeouts[item.timeoutkey]
+      log.timeouttombstones[item.timeoutkey] = yes
+      cb yes
+
+    oninterval: (log, item, cb) ->
+      log.intervals[item.intervalkey].value = item.value
+      cb yes
 
     end: (cb) ->
       if _fin

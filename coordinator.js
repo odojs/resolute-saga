@@ -6,8 +6,9 @@ Queue = require('seuss-backoff');
 iso8601 = require('./iso8601');
 
 module.exports = function(sagalog, sagalock, options) {
-  var commit, ontask, open, queue;
-  ontask = options.ontask;
+  var _listeners, _pendingupdates, _updateswilldrain, commit, handle, oninterval, onmessage, ontimeout, open, queue;
+  onmessage = options.onmessage, ontimeout = options.ontimeout, oninterval = options.oninterval;
+  _listeners = [];
   open = function(item, message, cb) {
     return sagalock.acquire(item.url, item.sagakey, function(success) {
       if (!success) {
@@ -45,9 +46,35 @@ module.exports = function(sagalog, sagalock, options) {
       });
     });
   };
+  _pendingupdates = {};
+  _updateswilldrain = false;
+  handle = sagalog.onlog(function(url, instance) {
+    if (_pendingupdates[url] == null) {
+      _pendingupdates[url] = {};
+    }
+    _pendingupdates[url][instance.key] = instance;
+    if (!_updateswilldrain) {
+      _updateswilldrain = true;
+      return queue.drain(function() {
+        var _, i, len, listener, sagaupdates;
+        for (url in _pendingupdates) {
+          sagaupdates = _pendingupdates[url];
+          for (_ in sagaupdates) {
+            instance = sagaupdates[_];
+            for (i = 0, len = _listeners.length; i < len; i++) {
+              listener = _listeners[i];
+              listener(url, instance);
+            }
+          }
+        }
+        _pendingupdates = {};
+        return _updateswilldrain = false;
+      });
+    }
+  });
   queue = Queue({
     onitem: function(item, cb) {
-      var alreadyseenin, isfutureevent, log, message;
+      var alreadyseenin, intervalisinlog, isfutureevent, log, message, timeoutisinlog;
       if (item.type === 'message') {
         message = function(msg) {
           return "" + item.url + item.sagakey + " MESSAGE " + item.messagekey + "#" + item.message.msgid + " " + msg;
@@ -72,8 +99,15 @@ module.exports = function(sagalog, sagalock, options) {
               return cb(true);
             });
           }
-          log.messagetombstones[item.message.msgid] = true;
-          return commit(item, log, message, cb);
+          return onmessage(log, item, function(success) {
+            if (success) {
+              return commit(item, log, message, cb);
+            } else {
+              return sagalock.release(item.url, item.sagakey, function() {
+                return cb(true);
+              });
+            }
+          });
         });
       } else if (item.type === 'timeout') {
         message = function(msg) {
@@ -86,47 +120,71 @@ module.exports = function(sagalog, sagalock, options) {
           }
           return false;
         };
+        timeoutisinlog = function(log) {
+          if (log.timeouts[item.timeoutkey].isSame(item.value)) {
+            return true;
+          }
+          console.log(message('NOT SAME TIMEOUT'));
+          return false;
+        };
         log = sagalog.getoutdated(item.url, item.sagakey);
-        if (alreadyseenin(log)) {
+        if (!timeoutisinlog(log) || alreadyseenin(log)) {
           return cb(true);
         }
         return open(item, message, function(success, log) {
           if (!success) {
             return cb(false);
           }
-          if (alreadyseenin(log)) {
+          if (!timeoutisinlog(log) || alreadyseenin(log)) {
             return sagalock.release(item.url, item.sagakey, function() {
               return cb(true);
             });
           }
-          delete log.timeouts[item.timeoutkey];
-          log.timeouttombstones[item.timeoutkey] = true;
-          return commit(item, log, message, cb);
+          return ontimeout(log, item, function(success) {
+            if (success) {
+              return commit(item, log, message, cb);
+            } else {
+              return sagalock.release(item.url, item.sagakey, function() {
+                return cb(true);
+              });
+            }
+          });
         });
       } else if (item.type === 'interval') {
         message = function(msg) {
-          return "" + item.url + item.sagakey + " INTERVAL " + item.intervalkey + "@" + (item.value.format(iso8601)) + "*" + item.count + " " + msg;
+          return "" + item.url + item.sagakey + " INTERVAL " + item.intervalkey + "@" + (item.anchor.format(iso8601)) + " " + item.count + item.unit + "*" + item.value + " " + msg;
         };
         alreadyseenin = function(log) {
           if (log.intervaltombstones[item.intervalkey] != null) {
             console.log(message('TOMBSTONED'));
             return true;
           }
-          if (log.intervals[item.intervalkey].value >= item.count) {
+          if (log.intervals[item.intervalkey].value >= item.value) {
             console.log(message('ALREADY SEEN'));
             return true;
           }
           return false;
         };
         isfutureevent = function(log) {
-          if (log.intervals[item.intervalkey].value + 1 < item.count) {
+          if (log.intervals[item.intervalkey].value + 1 < item.value) {
             console.log(message('FUTURE EVENT'));
             return true;
           }
           return false;
         };
+        intervalisinlog = function(log) {
+          var loginterval;
+          if (log.intervals[item.intervalkey] == null) {
+            return false;
+          }
+          loginterval = log.intervals[item.intervalkey];
+          if (loginterval.anchor.isSame(item.anchor) && loginterval.count === item.count && loginterval.unit === item.unit) {
+            return true;
+          }
+          return false;
+        };
         log = sagalog.getoutdated(item.url, item.sagakey);
-        if (alreadyseenin(log)) {
+        if (!intervalisinlog(log) || alreadyseenin(log)) {
           return cb(true);
         }
         if (isfutureevent(log)) {
@@ -136,7 +194,7 @@ module.exports = function(sagalog, sagalock, options) {
           if (!success) {
             return cb(false);
           }
-          if (alreadyseenin(log)) {
+          if (!intervalisinlog(log) || alreadyseenin(log)) {
             return sagalock.release(item.url, item.sagakey, function() {
               return cb(true);
             });
@@ -146,8 +204,15 @@ module.exports = function(sagalog, sagalock, options) {
               return cb(false);
             });
           }
-          log.intervals[item.intervalkey].value = item.count;
-          return commit(item, log, message, cb);
+          return oninterval(log, item, function(success) {
+            if (success) {
+              return commit(item, log, message, cb);
+            } else {
+              return sagalock.release(item.url, item.sagakey, function() {
+                return cb(true);
+              });
+            }
+          });
         });
       } else {
         console.log("Unknown task " + item.type + ". Ignoring...");
@@ -175,20 +240,36 @@ module.exports = function(sagalog, sagalock, options) {
         value: value
       });
     },
-    oninterval: function(url, sagakey, intervalkey, count, value) {
+    oninterval: function(url, sagakey, intervalkey, anchor, count, unit, value, time) {
       return queue.enqueue({
         type: 'interval',
         url: url,
         sagakey: sagakey,
         intervalkey: intervalkey,
+        anchor: anchor,
         count: count,
-        value: value
+        unit: unit,
+        value: value,
+        time: time
       });
+    },
+    onlog: function(cb) {
+      _listeners.push(cb);
+      return {
+        off: function() {
+          var index;
+          index = _listeners.indexOf(cb);
+          if (index !== -1) {
+            return _listeners.splice(index, 1);
+          }
+        }
+      };
     },
     drain: function(cb) {
       return queue.drain(cb);
     },
     destroy: function() {
+      handle.off();
       return queue.destroy();
     }
   };
