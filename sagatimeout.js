@@ -9,14 +9,14 @@ moment = chrono(moment);
 
 iso8601 = require('./iso8601');
 
-module.exports = function(logwatcher, options) {
+module.exports = function(sagalog, options) {
   var handle, ontimeout, timeoutsforsagas;
   timeoutsforsagas = {};
   ontimeout = options.ontimeout;
   if (ontimeout == null) {
     ontimeout = function() {};
   }
-  handle = logwatcher.onlog(function(url, instance) {
+  handle = sagalog.onlog(function(url, instance) {
     var _, key, ref, ref1, results, timeout, timeouts, timeoutsforsaga;
     if (timeoutsforsagas[url] == null) {
       timeoutsforsagas[url] = {};
@@ -33,7 +33,6 @@ module.exports = function(logwatcher, options) {
         continue;
       }
       timeouts[key].cancel();
-      console.log("Removing timeout " + key);
       delete timeouts[key];
     }
     ref1 = instance.log.timeouts;
@@ -44,9 +43,7 @@ module.exports = function(logwatcher, options) {
         continue;
       }
       results.push((function(key, timeout) {
-        console.log("Creating timeout " + key + " " + (timeout.format(iso8601)));
         return timeouts[key] = timeout.timer(function(value) {
-          delete timeouts[key];
           return ontimeout(url, instance.key, key, value);
         });
       })(key, timeout));

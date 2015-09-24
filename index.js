@@ -32,9 +32,7 @@ unifier = unifier(sagalog, sagalock, {
 });
 
 sagatimeout = sagatimeout(sagalog, {
-  ontimeout: function() {
-    return unifier.ontimeout;
-  }
+  ontimeout: unifier.ontimeout
 });
 
 sagainterval = sagainterval(sagalog, {

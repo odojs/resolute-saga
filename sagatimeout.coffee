@@ -3,13 +3,13 @@ chrono = require 'chronological'
 moment = chrono moment
 iso8601 = require './iso8601'
 
-module.exports = (logwatcher, options) ->
+module.exports = (sagalog, options) ->
   timeoutsforsagas = {}
 
   ontimeout = options.ontimeout
   ontimeout ?= ->
 
-  handle = logwatcher.onlog (url, instance) ->
+  handle = sagalog.onlog (url, instance) ->
     if !timeoutsforsagas[url]?
       timeoutsforsagas[url] = {}
     timeoutsforsaga = timeoutsforsagas[url]
@@ -19,14 +19,14 @@ module.exports = (logwatcher, options) ->
     for key, _ of instance.log.timeouttombstones
       continue if !timeouts[key]?
       timeouts[key].cancel()
-      console.log "Removing timeout #{key}"
+      #console.log "#{url}#{instance.key} -timeout #{key}"
       delete timeouts[key]
     for key, timeout of instance.log.timeouts
       continue if timeouts[key]?
       do (key, timeout) ->
-        console.log "Creating timeout #{key} #{timeout.format iso8601}"
         timeouts[key] = timeout.timer (value) ->
-          delete timeouts[key]
+          # don't delete here, so things don't recreate until we get a tombstone
+          #delete timeouts[key]
           ontimeout url, instance.key, key, value
 
   destroy: ->

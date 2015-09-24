@@ -15,7 +15,7 @@ sagalock = sagalock 'docker:8500'
 subscriptions = subscriptions bus
 dispatcher = dispatcher subscriptions, hub
 unifier = unifier sagalog, sagalock, ontask: dispatcher.ontask
-sagatimeout = sagatimeout sagalog, ontimeout: -> unifier.ontimeout
+sagatimeout = sagatimeout sagalog, ontimeout: unifier.ontimeout
 sagainterval = sagainterval sagalog, oninterval: unifier.oninterval
 bus = resolute bind: 'tcp://127.0.0.1:12345', datadir: './12345'
 
