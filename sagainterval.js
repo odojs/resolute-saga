@@ -32,7 +32,7 @@ module.exports = function(sagalog, options) {
       if (intervals[key] == null) {
         continue;
       }
-      intervals[key].cancel();
+      intervals[key].end();
       delete intervals[key];
     }
     ref1 = instance.log.intervals;
@@ -44,13 +44,13 @@ module.exports = function(sagalog, options) {
         delete intervals[key];
       }
       results.push((function(key, interval) {
-        var timer;
-        interval = interval.interval;
-        if (interval != null) {
-          interval++;
+        var timer, value;
+        value = interval.value;
+        if (value != null) {
+          value++;
         }
-        timer = moment.utc(interval.anchor, iso8601).every(interval.count, interval.unit);
-        return intervals[key] = timer.timer(interval, function(count, value) {
+        timer = interval.anchor.every(interval.count, interval.unit);
+        return intervals[key] = timer.timer(value, function(value, count) {
           return oninterval(url, instance.key, key, count, value);
         });
       })(key, interval));

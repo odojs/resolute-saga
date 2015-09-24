@@ -23,8 +23,18 @@ sagalog = sagalog('docker:8500');
 
 sagalock = sagalock('docker:8500');
 
+subscriptions = subscriptions(bus);
+
+dispatcher = dispatcher(subscriptions, hub);
+
+unifier = unifier(sagalog, sagalock, {
+  ontask: dispatcher.ontask
+});
+
 sagatimeout = sagatimeout(sagalog, {
-  ontimeout: unifier.ontimeout
+  ontimeout: function() {
+    return unifier.ontimeout;
+  }
 });
 
 sagainterval = sagainterval(sagalog, {
@@ -34,14 +44,6 @@ sagainterval = sagainterval(sagalog, {
 bus = resolute({
   bind: 'tcp://127.0.0.1:12345',
   datadir: './12345'
-});
-
-subscriptions = subscriptions(bus);
-
-dispatcher = dispatcher(subscriptions, hub);
-
-unifier = unifier(sagalog, sagalock, {
-  ontask: dispatcher.ontask
 });
 
 subscriptions.bind('weather update', 'tcp://127.0.0.1:12346');

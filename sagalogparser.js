@@ -44,10 +44,10 @@ module.exports = {
         key = params[0];
         result.messagetombstones[key] = true;
       } else if (s[0] === 't') {
-        if (params.length === 3) {
+        if (params.length === 2) {
           key = params[0], timeout = params[1];
           result.timeouts[key] = moment.utc(timeout, iso8601);
-        } else if (params.length === 2) {
+        } else if (params.length === 1) {
           key = params[0];
           result.timeouttombstones[key] = true;
         } else {
@@ -70,7 +70,7 @@ module.exports = {
             count: count,
             unit: unit
           };
-        } else if (params.length === 2) {
+        } else if (params.length === 1) {
           key = params[0];
           result.intervaltombstones[key] = true;
         } else {
@@ -108,12 +108,12 @@ module.exports = {
     ref1 = log.timeouts;
     for (key in ref1) {
       timeout = ref1[key];
-      r.push("timeout " + key + " " + (timeout.format(iso8601)) + " active");
+      r.push("timeout " + key + " " + (timeout.format(iso8601)));
     }
     ref2 = log.timeouttombstones;
     for (key in ref2) {
       _ = ref2[key];
-      r.push("timeout " + key + " tombstone");
+      r.push("timeout " + key);
     }
     r.push('');
     r.push('# Intervals');
@@ -129,7 +129,7 @@ module.exports = {
     ref4 = log.intervaltombstones;
     for (key in ref4) {
       _ = ref4[key];
-      r.push("interval " + key + " tombstone");
+      r.push("interval " + key);
     }
     r.push('');
     r.push('# Message IDs Seen');

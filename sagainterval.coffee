@@ -18,19 +18,17 @@ module.exports = (sagalog, options) ->
     intervals = intervalsforsaga[instance.key]
     for key, _ of instance.log.intervaltombstones
       continue if !intervals[key]?
-      intervals[key].cancel()
+      intervals[key].end()
       delete intervals[key]
     for key, interval of instance.log.intervals
       if intervals[key]?
         intervals[key].end()
         delete intervals[key]
       do (key, interval) ->
-        interval = interval.interval
-        interval++ if interval?
-        timer = moment
-          .utc interval.anchor, iso8601
-          .every interval.count, interval.unit
-        intervals[key] = timer.timer interval, (count, value) ->
+        value = interval.value
+        value++ if value?
+        timer = interval.anchor.every interval.count, interval.unit
+        intervals[key] = timer.timer value, (value, count) ->
           oninterval url, instance.key, key, count, value
 
   destroy: ->

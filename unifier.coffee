@@ -73,17 +73,17 @@ module.exports = (sagalog, sagalock, options) ->
 
         commit item, log, message, cb
     else if item.type is 'interval'
-      message = (msg) -> "#{item.url}#{item.sagakey} TIMEOUT #{item.intervalkey}@#{item.anchor.format iso8601} #{item.count}#{item.unit}*#{item.value} #{msg}"
+      message = (msg) -> "#{item.url}#{item.sagakey} INTERVAL #{item.intervalkey}@#{item.value.format iso8601}*#{item.count} #{msg}"
       alreadyseenin = (log) ->
         if log.intervaltombstones[item.intervalkey]?
           console.log message 'TOMBSTONED'
           return yes
-        if log.interval[item.intervalkey].value >= item.value
+        if log.intervals[item.intervalkey].value >= item.count
           console.log message 'ALREADY SEEN'
           return yes
         no
       isfutureevent = (log) ->
-        if log.interval[item.intervalkey].value + 1 < item.value
+        if log.intervals[item.intervalkey].value + 1 < item.count
           console.log message 'FUTURE EVENT'
           return yes
         no
@@ -100,8 +100,7 @@ module.exports = (sagalog, sagalock, options) ->
         if isfutureevent log
           return sagalock.release item.url, item.sagakey, -> cb no
 
-        log.intervals[item.intervalkey].value
-        log.intervaltombstones[item.intervalkey] = yes
+        log.intervals[item.intervalkey].value = item.count
 
         commit item, log, message, cb
     else
@@ -125,7 +124,7 @@ module.exports = (sagalog, sagalock, options) ->
       value: value
   oninterval: (url, sagakey, intervalkey, count, value) ->
     queue.enqueue
-      type: 'timeout'
+      type: 'interval'
       url: url
       sagakey: sagakey
       intervalkey: intervalkey

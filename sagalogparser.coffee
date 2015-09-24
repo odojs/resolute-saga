@@ -32,10 +32,10 @@ module.exports =
         result.messagetombstones[key] = yes
       # timeouts start with t
       else if s[0] is 't'
-        if params.length is 3
+        if params.length is 2
           [key, timeout] = params
           result.timeouts[key] = moment.utc timeout, iso8601
-        else if params.length is 2
+        else if params.length is 1
           [key] = params
           result.timeouttombstones[key] = yes
         else
@@ -57,7 +57,7 @@ module.exports =
             anchor: moment.utc anchor, iso8601
             count: count
             unit: unit
-        else if params.length is 2
+        else if params.length is 1
           [key] = params
           result.intervaltombstones[key] = yes
         else
@@ -87,9 +87,9 @@ module.exports =
     r.push ''
     r.push '# Timeouts'
     for key, timeout of log.timeouts
-      r.push "timeout #{key} #{timeout.format iso8601} active"
+      r.push "timeout #{key} #{timeout.format iso8601}"
     for key, _ of log.timeouttombstones
-      r.push "timeout #{key} tombstone"
+      r.push "timeout #{key}"
     r.push ''
     r.push '# Intervals'
     for key, interval of log.intervals
@@ -98,7 +98,7 @@ module.exports =
       else
         r.push "interval #{key} #{interval.anchor.format iso8601} #{interval.count} #{interval.unit}"
     for key, _ of log.intervaltombstones
-      r.push "interval #{key} tombstone"
+      r.push "interval #{key}"
     r.push ''
     r.push '# Message IDs Seen'
     for key, _ of log.messagetombstones

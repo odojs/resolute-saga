@@ -105,21 +105,21 @@ module.exports = function(sagalog, sagalock, options) {
         });
       } else if (item.type === 'interval') {
         message = function(msg) {
-          return "" + item.url + item.sagakey + " TIMEOUT " + item.intervalkey + "@" + (item.anchor.format(iso8601)) + " " + item.count + item.unit + "*" + item.value + " " + msg;
+          return "" + item.url + item.sagakey + " INTERVAL " + item.intervalkey + "@" + (item.value.format(iso8601)) + "*" + item.count + " " + msg;
         };
         alreadyseenin = function(log) {
           if (log.intervaltombstones[item.intervalkey] != null) {
             console.log(message('TOMBSTONED'));
             return true;
           }
-          if (log.interval[item.intervalkey].value >= item.value) {
+          if (log.intervals[item.intervalkey].value >= item.count) {
             console.log(message('ALREADY SEEN'));
             return true;
           }
           return false;
         };
         isfutureevent = function(log) {
-          if (log.interval[item.intervalkey].value + 1 < item.value) {
+          if (log.intervals[item.intervalkey].value + 1 < item.count) {
             console.log(message('FUTURE EVENT'));
             return true;
           }
@@ -146,8 +146,7 @@ module.exports = function(sagalog, sagalock, options) {
               return cb(false);
             });
           }
-          log.intervals[item.intervalkey].value;
-          log.intervaltombstones[item.intervalkey] = true;
+          log.intervals[item.intervalkey].value = item.count;
           return commit(item, log, message, cb);
         });
       } else {
@@ -178,7 +177,7 @@ module.exports = function(sagalog, sagalock, options) {
     },
     oninterval: function(url, sagakey, intervalkey, count, value) {
       return queue.enqueue({
-        type: 'timeout',
+        type: 'interval',
         url: url,
         sagakey: sagakey,
         intervalkey: intervalkey,

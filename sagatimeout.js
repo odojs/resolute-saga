@@ -33,6 +33,7 @@ module.exports = function(logwatcher, options) {
         continue;
       }
       timeouts[key].cancel();
+      console.log("Removing timeout " + key);
       delete timeouts[key];
     }
     ref1 = instance.log.timeouts;
@@ -43,7 +44,7 @@ module.exports = function(logwatcher, options) {
         continue;
       }
       results.push((function(key, timeout) {
-        timeout = moment.utc(timeout, iso8601);
+        console.log("Creating timeout " + key + " " + (timeout.format(iso8601)));
         return timeouts[key] = timeout.timer(function(value) {
           delete timeouts[key];
           return ontimeout(url, instance.key, key, value);

@@ -19,11 +19,12 @@ module.exports = (logwatcher, options) ->
     for key, _ of instance.log.timeouttombstones
       continue if !timeouts[key]?
       timeouts[key].cancel()
+      console.log "Removing timeout #{key}"
       delete timeouts[key]
     for key, timeout of instance.log.timeouts
       continue if timeouts[key]?
       do (key, timeout) ->
-        timeout = moment.utc timeout, iso8601
+        console.log "Creating timeout #{key} #{timeout.format iso8601}"
         timeouts[key] = timeout.timer (value) ->
           delete timeouts[key]
           ontimeout url, instance.key, key, value
