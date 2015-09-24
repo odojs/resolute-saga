@@ -1,11 +1,11 @@
-sagalog = require './sagalog'
-sagalock = require './sagalock'
+sagalog = require './log'
+sagalock = require './lock'
 resolute = require 'resolute'
 subscriptions = require 'resolute/subscriptions'
 dispatcher = require './dispatcher'
 coordinator = require './coordinator'
-sagatimeout = require './sagatimeout'
-sagainterval = require './sagainterval'
+sagatimeout = require './timeout'
+sagainterval = require './interval'
 
 hub = require('odo-hub/hub') require('odo-hub/dispatch_parallel')()
 

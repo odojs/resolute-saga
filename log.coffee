@@ -1,5 +1,5 @@
 consul = require 'consul-utils'
-LOG = require './sagalogparser'
+LOG = require './parser'
 
 strendswith = (str, suffix) ->
   str.indexOf(suffix, str.length - suffix.length) isnt -1

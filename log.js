@@ -3,7 +3,7 @@ var LOG, consul, strendswith;
 
 consul = require('consul-utils');
 
-LOG = require('./sagalogparser');
+LOG = require('./parser');
 
 strendswith = function(str, suffix) {
   return str.indexOf(suffix, str.length - suffix.length) !== -1;
