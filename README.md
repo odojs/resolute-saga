@@ -1,8 +1,6 @@
 # Resolute Saga
-
 Saga pattern for resolute
 
 # TODO
-- Better log format (not a log?)
+- Implement better log format
 - Process timeouts and intervals
-- Purge items in advance?

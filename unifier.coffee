@@ -1,7 +1,6 @@
 loghelper = require './loghelper'
 Queue = require 'seuss-backoff'
 
-# TODO: optimisation to collect all saga and instance messages together?
 module.exports = (sagalog, sagalock, options) ->
   ontask = options.ontask
 
