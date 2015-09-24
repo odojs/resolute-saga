@@ -1,41 +1,36 @@
 moment = require 'moment-timezone'
-spanner = require 'timespanner'
 chrono = require 'chronological'
-moment = chrono spanner moment
-loghelper = require './loghelper'
+moment = chrono moment
+iso8601 = require './iso8601'
 
-module.exports = (logwatcher, options) ->
+module.exports = (sagalog, options) ->
   intervalsforsagas = {}
 
   oninterval = options.oninterval
   oninterval ?= ->
 
-  handle = logwatcher.onlog (url, instance) ->
+  handle = sagalog.onlog (url, instance) ->
     if !intervalsforsagas[url]?
       intervalsforsagas[url] = {}
     intervalsforsaga = intervalsforsagas[url]
     if !intervalsforsaga[instance.key]?
       intervalsforsaga[instance.key] = {}
     intervals = intervalsforsaga[instance.key]
-    for key, _ of instance.interpreted.clearedintervals
+    for key, _ of instance.log.intervaltombstones
       continue if !intervals[key]?
       intervals[key].cancel()
       delete intervals[key]
-    for key, _ of instance.interpreted.handledintervals
-      continue if !intervals[key]?
-      intervals[key].cancel()
-      delete intervals[key]
-    for key, interval of instance.interpreted.intervals
+    for key, interval of instance.log.intervals
       if intervals[key]?
         intervals[key].end()
         delete intervals[key]
       do (key, interval) ->
-        start = interval.start
-        start++ if start?
+        interval = interval.interval
+        interval++ if interval?
         timer = moment
-          .utc(interval.anchor, 'YYYY-MM-DD[T]HH:mm:ssZ')
-          .every(interval.count, interval.unit)
-        intervals[key] = timer.timer start, (count, value) ->
+          .utc interval.anchor, iso8601
+          .every interval.count, interval.unit
+        intervals[key] = timer.timer interval, (count, value) ->
           oninterval url, instance.key, key, count, value
 
   destroy: ->

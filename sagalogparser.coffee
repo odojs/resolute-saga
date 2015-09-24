@@ -1,32 +1,36 @@
 moment = require 'moment-timezone'
-iso8601 = 'YYYY-MM-DD[T]HH:mm:ss[Z]'
+iso8601 = require './iso8601'
+
+blank = ->
+  data: {}
+  timeouts: {}
+  timeouttombstones: {}
+  intervals: {}
+  intervaltombstones: {}
+  messagetombstones: {}
 
 module.exports =
+  blank: blank
   parse: (content) ->
-    result =
-      data: {}
-      timeouts: {}
-      timeouttombstones: {}
-      intervals: {}
-      intervaltombstones: {}
-      messagetombstones: {}
+    result = blank()
     for s, index in content.split '\n'
       s = s.trim()
       # skip empty ss
       continue if s is ''
       # skip comments
-      i = 0
-      if s[0] is '#'
-        continue
+      continue if s[0] is '#'
+      # expect parameters split by one or more spaces
       params = s.split ' '
       params.shift()
       params = params.filter (c) -> c isnt ''
+      # messages start with m
       if s[0] is 'm'
         if params.length isnt 1
           console.log "Line #{index + 1}. Unknown message entry \"#{s}\""
           continue
         [key] = params
         result.messagetombstones[key] = yes
+      # timeouts start with t
       else if s[0] is 't'
         if params.length is 3
           [key, timeout] = params
@@ -37,7 +41,9 @@ module.exports =
         else
           console.log "Line #{index + 1}. Unknown timeout entry \"#{s}\""
           continue
+      # intervals start with i
       else if s[0] is 'i'
+        # interval is optional (will discover next closest)
         if params.length is 5
           [key, anchor, count, unit, interval] = params
           result.intervals[key] =
@@ -57,6 +63,7 @@ module.exports =
         else
           console.log "Line #{index + 1}. Unknown interval entry \"#{s}\""
           continue
+      # data starts with d
       else if s[0] is 'd'
         if params.length is 0
           console.log "Line #{index + 1}. Unknown data entry \"#{s}\""
@@ -67,6 +74,7 @@ module.exports =
         params.shift()
         data = params.join ' '
         result.data[key] = JSON.parse data
+      # nothing else in the log format (yet?)
       else
         console.log "Line #{index + 1}. Unknown log entry \"#{s}\""
     result

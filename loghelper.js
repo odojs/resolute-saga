@@ -55,11 +55,11 @@ module.exports = result = {
             anchor: item.anchor,
             count: item.count,
             unit: item.unit,
-            start: item.start
+            interval: item.interval
           };
           break;
         case 'handledinterval':
-          res.intervals[item.id].start = item.interval;
+          res.intervals[item.id].interval = item.interval;
           res.handledintervals[item.id] = item.interval;
           break;
         case 'clearinterval':

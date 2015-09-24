@@ -1,4 +1,3 @@
-loghelper = require './loghelper'
 Queue = require 'seuss-backoff'
 
 module.exports = (sagalog, sagalock, options) ->
@@ -12,13 +11,8 @@ module.exports = (sagalog, sagalock, options) ->
       console.log message 'UNABLE TO LOAD'
       return cb no
 
-    log = instance?.log
-    log ?= []
-    interpreted = instance?.interpreted
-    interpreted ?= loghelper.blankinterpretedlog()
-
     # if the message has already been seen then all good
-    if interpreted.handledmessages[item.message.msgid]?
+    if instance.log.messagetombstones[item.message.msgid]?
       console.log message 'ALREADY SEEN'
       return cb yes
 
@@ -32,11 +26,7 @@ module.exports = (sagalog, sagalock, options) ->
         if err?
           console.log message 'UNABLE TO COMPLETE READ'
 
-        log = instance?.log
-        log ?= []
-        interpreted = instance?.interpreted
-        interpreted ?= loghelper.blankinterpretedlog()
-        alreadyseen = interpreted.handledmessages[item.message.msgid]?
+        alreadyseen = instance.log.messagetombstones[item.message.msgid]?
         if alreadyseen
           console.log message 'ALREADY SEEN'
 
@@ -44,10 +34,8 @@ module.exports = (sagalog, sagalock, options) ->
           return sagalock.release item.url, item.sagakey, ->
             cb no
 
-        log.push
-          type: 'handledmessage'
-          id: item.message.msgid
-        sagalog.set item.url, item.sagakey, log, (err) ->
+        instance.log.messagetombstones[item.message.msgid] = yes
+        sagalog.set item.url, item.sagakey, instance.log, (err) ->
           sagalock.release item.url, item.sagakey, (success) ->
             if !success or err?
               console.log message 'UNABLE TO COMPLETE WRITE'

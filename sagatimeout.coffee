@@ -1,8 +1,7 @@
 moment = require 'moment-timezone'
-spanner = require 'timespanner'
 chrono = require 'chronological'
-moment = chrono spanner moment
-loghelper = require './loghelper'
+moment = chrono moment
+iso8601 = require './iso8601'
 
 module.exports = (logwatcher, options) ->
   timeoutsforsagas = {}
@@ -17,18 +16,14 @@ module.exports = (logwatcher, options) ->
     if !timeoutsforsaga[instance.key]?
       timeoutsforsaga[instance.key] = {}
     timeouts = timeoutsforsaga[instance.key]
-    for key, _ of instance.interpreted.clearedtimeouts
+    for key, _ of instance.log.timeouttombstones
       continue if !timeouts[key]?
       timeouts[key].cancel()
       delete timeouts[key]
-    for key, _ of instance.interpreted.handledtimeouts
-      continue if !timeouts[key]?
-      timeouts[key].cancel()
-      delete timeouts[key]
-    for key, timeout of instance.interpreted.timeouts
+    for key, timeout of instance.log.timeouts
       continue if timeouts[key]?
       do (key, timeout) ->
-        timeout = moment.utc timeout, 'YYYY-MM-DD[T]HH:mm:ssZ'
+        timeout = moment.utc timeout, iso8601
         timeouts[key] = timeout.timer (value) ->
           delete timeouts[key]
           ontimeout url, instance.key, key, value

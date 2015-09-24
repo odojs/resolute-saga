@@ -1,7 +1,6 @@
 moment = require 'moment-timezone'
-spanner = require 'timespanner'
 chrono = require 'chronological'
-moment = chrono spanner moment
+moment = chrono moment
 
 
 

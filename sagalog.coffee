@@ -1,5 +1,5 @@
 consul = require 'consul-utils'
-loghelper = require './loghelper'
+LOG = require './sagalogparser'
 
 strendswith = (str, suffix) ->
   str.indexOf(suffix, str.length - suffix.length) isnt -1
@@ -24,10 +24,9 @@ module.exports = (httpAddr) ->
         d.Value ?= ''
         d
     for key in keys
-      log = loghelper.parse key.Value
       instance =
-        log: log
-        interpreted: loghelper.interpret log
+        key: key.Key
+        log: LOG.parse key.Value
       sagas[url].log[key.Key] = instance
       listener url, instance for listener in _listeners
 
@@ -36,8 +35,8 @@ module.exports = (httpAddr) ->
       readkv url, keys
 
   getblanklog = (key) ->
-    log: loghelper.blanklog()
-    interpreted: loghelper.blankinterpretedlog()
+    key: key
+    log: LOG.blank()
 
   res =
     watch: (url) ->
@@ -67,10 +66,12 @@ module.exports = (httpAddr) ->
         cb null, sagas[url].log[key]
 
     set: (url, key, content, cb) ->
-      content = loghelper.stringify content
+      content = LOG.stringify content
       consul.SetKV httpAddr, "#{url}#{key}.log", content, (err) ->
         return cb err if err?
-        sagas[url].log[key] = loghelper.parse content
+        sagas[url].log[key] =
+          key: key
+          log: LOG.parse content
         cb null, sagas[url].log[key]
 
     onlog: (cb) ->

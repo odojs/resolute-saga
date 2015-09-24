@@ -1,6 +1,5 @@
 sagalog = require './sagalog'
 sagalock = require './sagalock'
-loghelper = require './loghelper'
 resolute = require 'resolute'
 subscriptions = require 'resolute/subscriptions'
 dispatcher = require './dispatcher'
