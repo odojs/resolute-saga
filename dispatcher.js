@@ -151,7 +151,6 @@ module.exports = function(subscriptions, hub) {
     },
     ontimeout: function(log, item, cb) {
       var context, fin, instance, saga;
-      console.log('ontimeout');
       if (sagas[item.url] == null) {
         console.error("Saga " + item.url + " not registered");
         return cb(true);

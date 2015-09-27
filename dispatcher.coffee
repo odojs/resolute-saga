@@ -90,7 +90,6 @@ module.exports = (subscriptions, hub) ->
       instance[item.messagekey] item.message.data, fin
 
     ontimeout: (log, item, cb) ->
-      console.log 'ontimeout'
       if !sagas[item.url]?
         console.error "Saga #{item.url} not registered"
         return cb yes
