@@ -77,6 +77,9 @@ module.exports = (sagalog, sagalock, options) ->
           return yes
         no
       timeoutisinlog = (log) ->
+        if !log.timeouts[item.timeoutkey]?
+          console.log message 'NO LONGER VALID'
+          return no
         return yes if log.timeouts[item.timeoutkey].isSame item.value
         console.log message 'NOT SAME TIMEOUT'
         no
@@ -101,6 +104,9 @@ module.exports = (sagalog, sagalock, options) ->
       alreadyseenin = (log) ->
         if log.intervaltombstones[item.intervalkey]?
           console.log message 'TOMBSTONED'
+          return yes
+        if !log.intervals[item.intervalkey]?
+          console.log message 'NO LONGER VALID'
           return yes
         if log.intervals[item.intervalkey].value >= item.value
           console.log message 'ALREADY SEEN'

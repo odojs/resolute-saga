@@ -119,6 +119,10 @@ module.exports = function(sagalog, sagalock, options) {
           return false;
         };
         timeoutisinlog = function(log) {
+          if (log.timeouts[item.timeoutkey] == null) {
+            console.log(message('NO LONGER VALID'));
+            return false;
+          }
           if (log.timeouts[item.timeoutkey].isSame(item.value)) {
             return true;
           }
@@ -155,6 +159,10 @@ module.exports = function(sagalog, sagalock, options) {
         alreadyseenin = function(log) {
           if (log.intervaltombstones[item.intervalkey] != null) {
             console.log(message('TOMBSTONED'));
+            return true;
+          }
+          if (log.intervals[item.intervalkey] == null) {
+            console.log(message('NO LONGER VALID'));
             return true;
           }
           if (log.intervals[item.intervalkey].value >= item.value) {

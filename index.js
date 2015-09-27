@@ -24,8 +24,8 @@ sagalog = sagalog('docker:8500');
 sagalock = sagalock('docker:8500');
 
 bus = resolute({
-  bind: 'tcp://127.0.0.1:12345',
-  datadir: './12345'
+  bind: "tcp://127.0.0.1:" + process.argv[2],
+  datadir: "./" + process.argv[2]
 });
 
 subscriptions = subscriptions(bus);
