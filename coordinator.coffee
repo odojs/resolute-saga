@@ -25,9 +25,7 @@ module.exports = (sagalog, sagalock, options) ->
           else
             console.log message 'UNABLE TO COMPLETE WRITE, UNABLE TO RELEASE LOCK'
           return cb no
-        if success
-          console.log message 'WRITTEN TO LOG'
-        else
+        if !success
           console.log message 'WRITTEN TO LOG, UNABLE TO RELEASE LOCK'
         cb yes
 
@@ -50,9 +48,9 @@ module.exports = (sagalog, sagalock, options) ->
 
   queue = Queue onitem: (item, cb) ->
     if item.type is 'message'
-      message = (msg) -> "#{item.url}#{item.sagakey} MESSAGE #{item.messagekey}##{item.message.msgid} #{msg}"
+      message = (msg) -> "#{item.url}#{item.sagakey} MESSAGE #{item.messagekey}##{item.message.id} #{msg}"
       alreadyseenin = (log) ->
-        if log.messagetombstones[item.message.msgid]?
+        if log.messagetombstones[item.message.id]?
           console.log message 'ALREADY SEEN'
           return yes
         no

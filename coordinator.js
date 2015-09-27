@@ -37,9 +37,7 @@ module.exports = function(sagalog, sagalock, options) {
           }
           return cb(false);
         }
-        if (success) {
-          console.log(message('WRITTEN TO LOG'));
-        } else {
+        if (!success) {
           console.log(message('WRITTEN TO LOG, UNABLE TO RELEASE LOCK'));
         }
         return cb(true);
@@ -77,10 +75,10 @@ module.exports = function(sagalog, sagalock, options) {
       var alreadyseenin, intervalisinlog, isfutureevent, log, message, timeoutisinlog;
       if (item.type === 'message') {
         message = function(msg) {
-          return "" + item.url + item.sagakey + " MESSAGE " + item.messagekey + "#" + item.message.msgid + " " + msg;
+          return "" + item.url + item.sagakey + " MESSAGE " + item.messagekey + "#" + item.message.id + " " + msg;
         };
         alreadyseenin = function(log) {
-          if (log.messagetombstones[item.message.msgid] != null) {
+          if (log.messagetombstones[item.message.id] != null) {
             console.log(message('ALREADY SEEN'));
             return true;
           }

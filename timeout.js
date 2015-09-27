@@ -40,10 +40,12 @@ module.exports = function(sagalog, options) {
     for (key in ref1) {
       timeout = ref1[key];
       if (timeouts[key] != null) {
-        continue;
+        timeouts[key].cancel();
+        delete timeouts[key];
       }
       results.push((function(key, timeout) {
         return timeouts[key] = timeout.timer(function(value) {
+          delete timeouts[key];
           return ontimeout(url, instance.key, key, value);
         });
       })(key, timeout));

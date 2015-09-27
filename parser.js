@@ -47,9 +47,11 @@ module.exports = {
         if (params.length === 2) {
           key = params[0], timeout = params[1];
           result.timeouts[key] = moment.utc(timeout, iso8601);
+          delete result.timeouttombstones[key];
         } else if (params.length === 1) {
           key = params[0];
           result.timeouttombstones[key] = true;
+          delete result.timeouts[key];
         } else {
           console.log("Line " + (index + 1) + ". Unknown timeout entry \"" + s + "\"");
           continue;
@@ -59,15 +61,15 @@ module.exports = {
           key = params[0], anchor = params[1], count = params[2], unit = params[3], value = params[4];
           result.intervals[key] = {
             anchor: moment.utc(anchor, iso8601),
-            count: count,
+            count: parseInt(count),
             unit: unit,
-            value: value
+            value: parseInt(value)
           };
         } else if (params.length === 4) {
           key = params[0], anchor = params[1], count = params[2], unit = params[3];
           result.intervals[key] = {
             anchor: moment.utc(anchor, iso8601),
-            count: count,
+            count: parseInt(count),
             unit: unit
           };
         } else if (params.length === 1) {
@@ -108,7 +110,7 @@ module.exports = {
     ref1 = log.timeouts;
     for (key in ref1) {
       timeout = ref1[key];
-      r.push("timeout " + key + " " + (timeout.format(iso8601)));
+      r.push("timeout " + key + " " + (timeout.utc().format(iso8601)));
     }
     ref2 = log.timeouttombstones;
     for (key in ref2) {
@@ -121,9 +123,9 @@ module.exports = {
     for (key in ref3) {
       interval = ref3[key];
       if (interval.value != null) {
-        r.push("interval " + key + " " + (interval.anchor.format(iso8601)) + " " + interval.count + " " + interval.unit + " " + interval.value);
+        r.push("interval " + key + " " + (interval.anchor.utc().format(iso8601)) + " " + interval.count + " " + interval.unit + " " + interval.value);
       } else {
-        r.push("interval " + key + " " + (interval.anchor.format(iso8601)) + " " + interval.count + " " + interval.unit);
+        r.push("interval " + key + " " + (interval.anchor.utc().format(iso8601)) + " " + interval.count + " " + interval.unit);
       }
     }
     ref4 = log.intervaltombstones;

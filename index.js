@@ -23,9 +23,14 @@ sagalog = sagalog('docker:8500');
 
 sagalock = sagalock('docker:8500');
 
+bus = resolute({
+  bind: 'tcp://127.0.0.1:12345',
+  datadir: './12345'
+});
+
 subscriptions = subscriptions(bus);
 
-dispatcher = dispatcher(subscriptions, hub);
+dispatcher = dispatcher(subscriptions, bus.raw);
 
 coordinator = coordinator(sagalog, sagalock, {
   onmessage: dispatcher.onmessage,
@@ -41,38 +46,11 @@ sagainterval = sagainterval(coordinator, {
   oninterval: coordinator.oninterval
 });
 
-bus = resolute({
-  bind: 'tcp://127.0.0.1:12345',
-  datadir: './12345'
-});
-
 subscriptions.bind('weather update', 'tcp://127.0.0.1:12346');
 
-dispatcher.register('sagas/saga1/', require('./testsaga'));
+dispatcher.register(coordinator.onmessage, 'sagas/saga1/', require('./testsaga'));
 
 sagalog.watch('sagas/saga1/');
-
-hub.every('message', function(e, cb) {
-  return coordinator.onmessage('sagas/saga1/', 'exe1', 'message', e, cb);
-});
-
-setTimeout(function() {
-  hub.emit('message', {
-    msgid: 1,
-    value: 'awesome'
-  });
-  return hub.emit('message', {
-    msgid: 2,
-    value: 'awesome'
-  });
-}, 500);
-
-setTimeout(function() {
-  return hub.emit('message', {
-    msgid: 3,
-    value: 'awesome'
-  });
-}, 5000);
 
 exittimeout = null;
 
@@ -97,9 +75,10 @@ process.on('SIGINT', function() {
   console.log('(^C again to quit)');
   sagatimeout.destroy();
   sagainterval.destroy();
-  return bus.drain(function() {
-    return coordinator.drain(function() {
-      return dispatcher.end(function() {
+  return dispatcher.end(function() {
+    return bus.drain(function() {
+      bus.close();
+      return coordinator.drain(function() {
         return close();
       });
     });

@@ -35,9 +35,11 @@ module.exports =
         if params.length is 2
           [key, timeout] = params
           result.timeouts[key] = moment.utc timeout, iso8601
+          delete result.timeouttombstones[key]
         else if params.length is 1
           [key] = params
           result.timeouttombstones[key] = yes
+          delete result.timeouts[key]
         else
           console.log "Line #{index + 1}. Unknown timeout entry \"#{s}\""
           continue
@@ -48,14 +50,14 @@ module.exports =
           [key, anchor, count, unit, value] = params
           result.intervals[key] =
             anchor: moment.utc anchor, iso8601
-            count: count
+            count: parseInt count
             unit: unit
-            value: value
+            value: parseInt value
         else if params.length is 4
           [key, anchor, count, unit] = params
           result.intervals[key] =
             anchor: moment.utc anchor, iso8601
-            count: count
+            count: parseInt count
             unit: unit
         else if params.length is 1
           [key] = params
@@ -87,16 +89,16 @@ module.exports =
     r.push ''
     r.push '# Timeouts'
     for key, timeout of log.timeouts
-      r.push "timeout #{key} #{timeout.format iso8601}"
+      r.push "timeout #{key} #{timeout.utc().format iso8601}"
     for key, _ of log.timeouttombstones
       r.push "timeout #{key}"
     r.push ''
     r.push '# Intervals'
     for key, interval of log.intervals
       if interval.value?
-        r.push "interval #{key} #{interval.anchor.format iso8601} #{interval.count} #{interval.unit} #{interval.value}"
+        r.push "interval #{key} #{interval.anchor.utc().format iso8601} #{interval.count} #{interval.unit} #{interval.value}"
       else
-        r.push "interval #{key} #{interval.anchor.format iso8601} #{interval.count} #{interval.unit}"
+        r.push "interval #{key} #{interval.anchor.utc().format iso8601} #{interval.count} #{interval.unit}"
     for key, _ of log.intervaltombstones
       r.push "interval #{key}"
     r.push ''

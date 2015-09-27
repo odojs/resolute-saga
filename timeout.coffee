@@ -22,11 +22,12 @@ module.exports = (sagalog, options) ->
       #console.log "#{url}#{instance.key} -timeout #{key}"
       delete timeouts[key]
     for key, timeout of instance.log.timeouts
-      continue if timeouts[key]?
+      if timeouts[key]?
+        timeouts[key].cancel()
+        delete timeouts[key]
       do (key, timeout) ->
         timeouts[key] = timeout.timer (value) ->
-          # don't delete here, so things don't recreate until we get a tombstone
-          #delete timeouts[key]
+          delete timeouts[key]
           ontimeout url, instance.key, key, value
 
   destroy: ->

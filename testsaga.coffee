@@ -1,27 +1,20 @@
 moment = require 'moment-timezone'
-chrono = require 'chronological'
-moment = chrono moment
-
-
-
 
 module.exports =
   saga: (context) ->
-    #context.map 'weather update', (e) -> 'daemon'
+    context.map 'weather update', (e) -> 'daemon'
 
     context.ready()
 
   instance: (context) ->
     'weather update': (e, cb) ->
-      cb 'Not implemented'
-      # context.settimeout 'too long between updates', moment().add 5, 'seconds'
-      # console.log e
-      # cb()
+      context.setTimeout 'timeout1', moment().add 5, 's'
+      console.log "Weather is #{e}"
+      cb yes
 
-    'too long between updates': (e, cb) ->
-      cb 'Not implemented'
-      # console.log 'It has been too long between updates, haha'
-      # cb()
+    'timeout1': (e, cb) ->
+      console.log 'It has been too long between updates, haha'
+      cb yes
 
 
 
