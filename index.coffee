@@ -32,9 +32,6 @@ subscriptions.bind 'weather update', 'tcp://127.0.0.1:12346'
 dispatcher.register coordinator.onmessage, 'sagas/saga1/', require './testsaga'
 sagalog.watch 'sagas/saga1/'
 
-# bus.raw.every 'weather update', (e, cb) ->
-#   coordinator.onmessage 'sagas/saga1/', 'daemon', 'weather update', e, cb
-
 # Exit in weird and wonderful ways
 exittimeout = null
 process.on 'SIGINT', ->

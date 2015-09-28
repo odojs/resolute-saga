@@ -14,12 +14,20 @@ module.exports = function(subscriptions, hub) {
     updates = LOG.blank();
     return {
       setTimeout: function(key, timeout) {
+        if (!LOG.isValidKey(key)) {
+          console.error("" + url + sagakey + " cannot set timeout " + key + " - bad characters");
+          return;
+        }
         return updates.timeouts[key] = timeout;
       },
       clearTimeout: function(key) {
         return updates.timeouttombstones[key] = true;
       },
       setInterval: function(key, anchor, count, unit, value) {
+        if (!LOG.isValidKey(key)) {
+          console.error("" + url + sagakey + " cannot set interval " + key + " - bad characters");
+          return;
+        }
         return updates.intervals[key] = {
           anchor: anchor,
           count: count,
@@ -34,6 +42,10 @@ module.exports = function(subscriptions, hub) {
         return updates.messagetombstones[key] = true;
       },
       set: function(key, value) {
+        if (!LOG.isValidKey(key)) {
+          console.error("" + url + sagakey + " cannot set data " + key + " - bad characters");
+          return;
+        }
         return updates.data[key] = value;
       },
       get: function(key) {
@@ -84,6 +96,10 @@ module.exports = function(subscriptions, hub) {
       tasks = [];
       return module.saga({
         map: function(messagekey, fn) {
+          if (!LOG.isValidKey(messagekey)) {
+            console.error(url + " cannot subscribe to " + messagekey + " - bad characters");
+            return;
+          }
           return tasks.push(function(cb) {
             if (saga.subscriptions[messagekey] != null) {
               return;

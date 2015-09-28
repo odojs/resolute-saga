@@ -8,10 +8,16 @@ module.exports = (subscriptions, hub) ->
   buildcontext = (url, sagakey, log) ->
     updates = LOG.blank()
     setTimeout: (key, timeout) ->
+      unless LOG.isValidKey key
+        console.error "#{url}#{sagakey} cannot set timeout #{key} - bad characters"
+        return
       updates.timeouts[key] = timeout
     clearTimeout: (key) ->
       updates.timeouttombstones[key] = yes
     setInterval: (key, anchor, count, unit, value) ->
+      unless LOG.isValidKey key
+        console.error "#{url}#{sagakey} cannot set interval #{key} - bad characters"
+        return
       updates.intervals[key] =
         anchor: anchor
         count: count
@@ -22,6 +28,9 @@ module.exports = (subscriptions, hub) ->
     clearMessage: (key) ->
       updates.messagetombstones[key] = yes
     set: (key, value) ->
+      unless LOG.isValidKey key
+        console.error "#{url}#{sagakey} cannot set data #{key} - bad characters"
+        return
       updates.data[key] = value
     get: (key) ->
       log.data[key]
@@ -48,6 +57,9 @@ module.exports = (subscriptions, hub) ->
       tasks = []
       module.saga
         map: (messagekey, fn) ->
+          unless LOG.isValidKey messagekey
+            console.error "#{url} cannot subscribe to #{messagekey} - bad characters"
+            return
           tasks.push (cb) ->
             return if saga.subscriptions[messagekey]?
             subscriptions.subscribe messagekey

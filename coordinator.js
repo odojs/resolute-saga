@@ -6,19 +6,20 @@ Queue = require('seuss-backoff');
 iso8601 = require('./iso8601');
 
 module.exports = function(sagalog, sagalock, options) {
-  var _listeners, _pendingupdates, _updateswilldrain, commit, handle, oninterval, onmessage, ontimeout, open, queue;
+  var _listeners, _pendingupdates, _updateswilldrain, commit, handle, oninterval, onmessage, ontimeout, queue, read;
   onmessage = options.onmessage, ontimeout = options.ontimeout, oninterval = options.oninterval;
   _listeners = [];
-  open = function(item, message, cb) {
+  read = function(item, message, cb) {
     return sagalock.acquire(item.url, item.sagakey, function(success) {
       if (!success) {
-        console.log(message('COULD NOT LOCK'));
         return cb(false, null);
       }
       return sagalog.get(item.url, item.sagakey, function(err, log) {
         if (err != null) {
-          console.log(message('UNABLE TO COMPLETE READ'));
-          return sagalock.release(item.url, item.sagakey, function() {
+          return sagalock.release(item.url, item.sagakey, function(success) {
+            if (!success) {
+              console.error(message('read failed, release incomplete'));
+            }
             return cb(false, null);
           });
         }
@@ -31,14 +32,14 @@ module.exports = function(sagalog, sagalock, options) {
       return sagalock.release(item.url, item.sagakey, function(success) {
         if (err != null) {
           if (success) {
-            console.log(message('UNABLE TO COMPLETE WRITE, RELEASED LOCK ANYWAY'));
+            console.error(message('commit failed, release complete'));
           } else {
-            console.log(message('UNABLE TO COMPLETE WRITE, UNABLE TO RELEASE LOCK'));
+            console.error(message('commit failed, releae incomplete'));
           }
           return cb(false);
         }
         if (!success) {
-          console.log(message('WRITTEN TO LOG, UNABLE TO RELEASE LOCK'));
+          console.error(message('commit complete, release incomplete'));
         }
         return cb(true);
       });
@@ -75,11 +76,10 @@ module.exports = function(sagalog, sagalock, options) {
       var alreadyseenin, intervalisinlog, isfutureevent, log, message, timeoutisinlog;
       if (item.type === 'message') {
         message = function(msg) {
-          return "" + item.url + item.sagakey + " MESSAGE " + item.messagekey + "#" + item.message.id + " " + msg;
+          return "" + item.url + item.sagakey + " " + item.messagekey + "#" + item.message.id + " " + msg;
         };
         alreadyseenin = function(log) {
           if (log.messagetombstones[item.message.id] != null) {
-            console.log(message('ALREADY SEEN'));
             return true;
           }
           return false;
@@ -88,7 +88,7 @@ module.exports = function(sagalog, sagalock, options) {
         if (alreadyseenin(log)) {
           return cb(true);
         }
-        return open(item, message, function(success, log) {
+        return read(item, message, function(success, log) {
           if (!success) {
             return cb(false);
           }
@@ -109,31 +109,28 @@ module.exports = function(sagalog, sagalock, options) {
         });
       } else if (item.type === 'timeout') {
         message = function(msg) {
-          return "" + item.url + item.sagakey + " TIMEOUT " + item.timeoutkey + "@" + (item.value.format(iso8601)) + " " + msg;
+          return "" + item.url + item.sagakey + " " + item.timeoutkey + "@" + (item.value.format(iso8601)) + " " + msg;
         };
         alreadyseenin = function(log) {
           if (log.timeouttombstones[item.timeoutkey] != null) {
-            console.log(message('TOMBSTONED'));
             return true;
           }
           return false;
         };
         timeoutisinlog = function(log) {
           if (log.timeouts[item.timeoutkey] == null) {
-            console.log(message('NO LONGER VALID'));
             return false;
           }
           if (log.timeouts[item.timeoutkey].isSame(item.value)) {
             return true;
           }
-          console.log(message('NOT SAME TIMEOUT'));
           return false;
         };
         log = sagalog.getoutdated(item.url, item.sagakey);
         if (!timeoutisinlog(log) || alreadyseenin(log)) {
           return cb(true);
         }
-        return open(item, message, function(success, log) {
+        return read(item, message, function(success, log) {
           if (!success) {
             return cb(false);
           }
@@ -154,26 +151,23 @@ module.exports = function(sagalog, sagalock, options) {
         });
       } else if (item.type === 'interval') {
         message = function(msg) {
-          return "" + item.url + item.sagakey + " INTERVAL " + item.intervalkey + "@" + (item.anchor.format(iso8601)) + " " + item.count + item.unit + "*" + item.value + " " + msg;
+          return "" + item.url + item.sagakey + " " + item.intervalkey + "@" + (item.anchor.format(iso8601)) + " " + item.count + item.unit + "*" + item.value + " " + msg;
         };
         alreadyseenin = function(log) {
           if (log.intervaltombstones[item.intervalkey] != null) {
-            console.log(message('TOMBSTONED'));
             return true;
           }
           if (log.intervals[item.intervalkey] == null) {
-            console.log(message('NO LONGER VALID'));
             return true;
           }
           if (log.intervals[item.intervalkey].value >= item.value) {
-            console.log(message('ALREADY SEEN'));
             return true;
           }
           return false;
         };
         isfutureevent = function(log) {
           if (log.intervals[item.intervalkey].value + 1 < item.value) {
-            console.log(message('FUTURE EVENT'));
+            console.error(message('future event'));
             return true;
           }
           return false;
@@ -196,7 +190,7 @@ module.exports = function(sagalog, sagalock, options) {
         if (isfutureevent(log)) {
           return cb(false);
         }
-        return open(item, message, function(success, log) {
+        return read(item, message, function(success, log) {
           if (!success) {
             return cb(false);
           }

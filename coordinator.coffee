@@ -5,15 +5,15 @@ module.exports = (sagalog, sagalock, options) ->
   { onmessage, ontimeout, oninterval } = options
   _listeners = []
 
-  open = (item, message, cb) ->
+  read = (item, message, cb) ->
     sagalock.acquire item.url, item.sagakey, (success) ->
-      if !success
-        console.log message 'COULD NOT LOCK'
-        return cb no, null
+      return cb no, null if !success
       sagalog.get item.url, item.sagakey, (err, log) ->
         if err?
-          console.log message 'UNABLE TO COMPLETE READ'
-          return sagalock.release item.url, item.sagakey, -> cb no, null
+          return sagalock.release item.url, item.sagakey, (success) ->
+            if !success
+              console.error message 'read failed, release incomplete'
+            cb no, null
         cb yes, log
 
   commit = (item, log, message, cb) ->
@@ -21,12 +21,12 @@ module.exports = (sagalog, sagalock, options) ->
       sagalock.release item.url, item.sagakey, (success) ->
         if err?
           if success
-            console.log message 'UNABLE TO COMPLETE WRITE, RELEASED LOCK ANYWAY'
+            console.error message 'commit failed, release complete'
           else
-            console.log message 'UNABLE TO COMPLETE WRITE, UNABLE TO RELEASE LOCK'
+            console.error message 'commit failed, releae incomplete'
           return cb no
         if !success
-          console.log message 'WRITTEN TO LOG, UNABLE TO RELEASE LOCK'
+          console.error message 'commit complete, release incomplete'
         cb yes
 
   # Debounce updates while chewing through a backlog
@@ -48,17 +48,15 @@ module.exports = (sagalog, sagalock, options) ->
 
   queue = Queue onitem: (item, cb) ->
     if item.type is 'message'
-      message = (msg) -> "#{item.url}#{item.sagakey} MESSAGE #{item.messagekey}##{item.message.id} #{msg}"
+      message = (msg) -> "#{item.url}#{item.sagakey} #{item.messagekey}##{item.message.id} #{msg}"
       alreadyseenin = (log) ->
-        if log.messagetombstones[item.message.id]?
-          console.log message 'ALREADY SEEN'
-          return yes
+        return yes if log.messagetombstones[item.message.id]?
         no
 
       log = sagalog.getoutdated item.url, item.sagakey
       return cb yes if alreadyseenin log
 
-      open item, message, (success, log) ->
+      read item, message, (success, log) ->
         return cb no if !success
 
         if alreadyseenin log
@@ -70,25 +68,20 @@ module.exports = (sagalog, sagalock, options) ->
           else
             sagalock.release item.url, item.sagakey, -> cb yes
     else if item.type is 'timeout'
-      message = (msg) -> "#{item.url}#{item.sagakey} TIMEOUT #{item.timeoutkey}@#{item.value.format iso8601} #{msg}"
+      message = (msg) -> "#{item.url}#{item.sagakey} #{item.timeoutkey}@#{item.value.format iso8601} #{msg}"
       alreadyseenin = (log) ->
-        if log.timeouttombstones[item.timeoutkey]?
-          console.log message 'TOMBSTONED'
-          return yes
+        return yes if log.timeouttombstones[item.timeoutkey]?
         no
       timeoutisinlog = (log) ->
-        if !log.timeouts[item.timeoutkey]?
-          console.log message 'NO LONGER VALID'
-          return no
+        return no if !log.timeouts[item.timeoutkey]?
         return yes if log.timeouts[item.timeoutkey].isSame item.value
-        console.log message 'NOT SAME TIMEOUT'
         no
 
       log = sagalog.getoutdated item.url, item.sagakey
       if !timeoutisinlog(log) or alreadyseenin(log)
         return cb yes
 
-      open item, message, (success, log) ->
+      read item, message, (success, log) ->
         return cb no if !success
 
         if !timeoutisinlog(log) or alreadyseenin(log)
@@ -100,21 +93,15 @@ module.exports = (sagalog, sagalock, options) ->
           else
             sagalock.release item.url, item.sagakey, -> cb yes
     else if item.type is 'interval'
-      message = (msg) -> "#{item.url}#{item.sagakey} INTERVAL #{item.intervalkey}@#{item.anchor.format iso8601} #{item.count}#{item.unit}*#{item.value} #{msg}"
+      message = (msg) -> "#{item.url}#{item.sagakey} #{item.intervalkey}@#{item.anchor.format iso8601} #{item.count}#{item.unit}*#{item.value} #{msg}"
       alreadyseenin = (log) ->
-        if log.intervaltombstones[item.intervalkey]?
-          console.log message 'TOMBSTONED'
-          return yes
-        if !log.intervals[item.intervalkey]?
-          console.log message 'NO LONGER VALID'
-          return yes
-        if log.intervals[item.intervalkey].value >= item.value
-          console.log message 'ALREADY SEEN'
-          return yes
+        return yes if log.intervaltombstones[item.intervalkey]?
+        return yes if !log.intervals[item.intervalkey]?
+        return yes if log.intervals[item.intervalkey].value >= item.value
         no
       isfutureevent = (log) ->
         if log.intervals[item.intervalkey].value + 1 < item.value
-          console.log message 'FUTURE EVENT'
+          console.error message 'future event'
           return yes
         no
       intervalisinlog = (log) ->
@@ -128,7 +115,7 @@ module.exports = (sagalog, sagalock, options) ->
       return cb yes if !intervalisinlog(log) or alreadyseenin(log)
       return cb no if isfutureevent log
 
-      open item, message, (success, log) ->
+      read item, message, (success, log) ->
         return cb no if !success
 
         if !intervalisinlog(log) or alreadyseenin(log)

@@ -21,14 +21,12 @@
   },
   "homepage": "https://github.com/metocean/resolute-saga#readme",
   "dependencies": {
-    "chronological": "1.2.1",
-    "consul-utils": "1.4.0",
+    "chronological": "1.3.0",
+    "consul-utils": "1.5.0",
     "moment-timezone": "0.4.0",
-    "ndjson": "1.4.2",
     "odo-async": "1.0.1",
-    "odo-hub": "2.0.0",
-    "resolute": "0.1.1",
-    "seuss-backoff": "0.3.0",
-    "timespanner": "3.0.0"
+    "odo-hub": "2.0.1",
+    "resolute": "1.0.0",
+    "seuss-backoff": "1.0.0"
   }
 }
