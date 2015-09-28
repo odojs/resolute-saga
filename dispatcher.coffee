@@ -48,6 +48,8 @@ module.exports = (subscriptions, hub) ->
         log.timeouts[key] = timeout
       for key, interval of updates.intervals
         log.intervals[key] = interval
+      for key, value of updates.data
+        log.data[key] = value
 
   res =
     register: (onmessage, url, module, cb) ->

@@ -1,5 +1,7 @@
 consul = require 'consul-utils'
 os = require 'os'
+moment = require 'moment-timezone'
+iso8601 = require './iso8601'
 
 module.exports = (httpAddr) ->
   _fin = no
@@ -21,7 +23,7 @@ module.exports = (httpAddr) ->
       key: key
       lock: lock
     #console.log "Locking #{prefix}"
-    lock.acquire session.id(), os.hostname(), (success) ->
+    lock.acquire session.id(), "Locked by #{os.hostname()} process #{process.pid} @ #{moment.utc().format iso8601}", (success) ->
       delete locks[prefix] if !success
       cb success if cb?
 
@@ -31,7 +33,7 @@ module.exports = (httpAddr) ->
       cb yes if cb?
       return
     #console.log "Releasing #{prefix}"
-    locks[prefix].lock.release session.id(), null, (success) ->
+    locks[prefix].lock.release session.id(), "Unlocked by #{os.hostname()} process #{process.pid} @ #{moment.utc().format iso8601}", (success) ->
       delete locks[prefix]
       cb success if cb?
 

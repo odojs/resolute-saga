@@ -52,7 +52,7 @@ module.exports = function(subscriptions, hub) {
         return log.data[key];
       },
       apply: function() {
-        var _, interval, key, ref, ref1, ref2, ref3, ref4, results, timeout;
+        var _, interval, key, ref, ref1, ref2, ref3, ref4, ref5, results, timeout, value;
         ref = updates.messagetombstones;
         for (key in ref) {
           _ = ref[key];
@@ -77,10 +77,15 @@ module.exports = function(subscriptions, hub) {
           log.timeouts[key] = timeout;
         }
         ref4 = updates.intervals;
-        results = [];
         for (key in ref4) {
           interval = ref4[key];
-          results.push(log.intervals[key] = interval);
+          log.intervals[key] = interval;
+        }
+        ref5 = updates.data;
+        results = [];
+        for (key in ref5) {
+          value = ref5[key];
+          results.push(log.data[key] = value);
         }
         return results;
       }

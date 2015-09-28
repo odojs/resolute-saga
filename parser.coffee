@@ -1,9 +1,9 @@
 moment = require 'moment-timezone'
 iso8601 = require './iso8601'
 
-sanekey = (key) -> key.replace ' ', '+'
-insanekey = (key) -> key.replace '+', ' '
-validKeys = ///(\S| )+///
+sanekey = (key) -> key.replace /[ ]/g, '+'
+insanekey = (key) -> key.replace /\+/g, ' '
+validKeys = /(\S| )+/
 
 blank = ->
   data: {}

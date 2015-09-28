@@ -6,14 +6,14 @@ moment = require('moment-timezone');
 iso8601 = require('./iso8601');
 
 sanekey = function(key) {
-  return key.replace(' ', '+');
+  return key.replace(/[ ]/g, '+');
 };
 
 insanekey = function(key) {
-  return key.replace('+', ' ');
+  return key.replace(/\+/g, ' ');
 };
 
-validKeys = /(\S|)+/;
+validKeys = /(\S| )+/;
 
 blank = function() {
   return {

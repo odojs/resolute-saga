@@ -1,7 +1,7 @@
 # Resolute Saga
-Saga pattern for resolute
+Saga pattern for resolute.
 
-# TODO
-- Actually call the saga
-- Subscribe dispatcher to hub
-- Test cases?
+# Next major release
+- Lots of test scenarios
+- Properly map out states
+- Identify better transitions when possible

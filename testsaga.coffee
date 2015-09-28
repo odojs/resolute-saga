@@ -3,28 +3,19 @@ moment = require 'moment-timezone'
 module.exports =
   saga: (context) ->
     context.map 'weather update', (e) -> 'daemon'
-
     context.ready()
 
   instance: (context) ->
     'weather update': (e, cb) ->
-      context.setTimeout 'timeout1', moment().add 5, 's'
+      context.setTimeout '5s since last update', moment().add 5, 's'
+      context.set 'lastweather', e
       console.log "Weather is #{e}"
       cb yes
 
-    'timeout1': (e, cb) ->
-      console.log 'It has been too long between updates, haha'
+    '5s since last update': (e, cb) ->
+      weather = context.get 'lastweather'
+      console.log "5s since last weather update of #{weather}"
       cb yes
-
-
-
-# moment = require 'moment-timezone'
-# spanner = require 'timespanner'
-# chrono = require 'chronological'
-# moment = chrono spanner moment
-
-
-
 
 # module.exports =
 #   configuresaga: (context) ->

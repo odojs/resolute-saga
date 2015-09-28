@@ -13,12 +13,15 @@ module.exports = {
   instance: function(context) {
     return {
       'weather update': function(e, cb) {
-        context.setTimeout('timeout1', moment().add(5, 's'));
+        context.setTimeout('5s since last update', moment().add(5, 's'));
+        context.set('lastweather', e);
         console.log("Weather is " + e);
         return cb(true);
       },
-      'timeout1': function(e, cb) {
-        console.log('It has been too long between updates, haha');
+      '5s since last update': function(e, cb) {
+        var weather;
+        weather = context.get('lastweather');
+        console.log("5s since last weather update of " + weather);
         return cb(true);
       }
     };
