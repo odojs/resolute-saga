@@ -7,8 +7,6 @@ coordinator = require './coordinator'
 sagatimeout = require './timeout'
 sagainterval = require './interval'
 
-hub = require('odo-hub/hub') require('odo-hub/dispatch_parallel')()
-
 # Connect components together to make a monster
 sagalog = sagalog 'docker:8500'
 sagalock = sagalock 'docker:8500'
